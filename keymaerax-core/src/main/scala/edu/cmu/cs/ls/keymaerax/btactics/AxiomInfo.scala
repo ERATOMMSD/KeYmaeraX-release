@@ -1187,7 +1187,12 @@ object DerivationInfo {
     // assertions and messages
     InputTacticInfo("print"
       , SimpleDisplayInfo("Print","print")
-      ,List(StringArg("msg")), _ => ((msg: String) => DebuggingTactics.printIndexed(msg)): TypedFunc[String, BelleExpr])
+      ,List(StringArg("msg")), _ => ((msg: String) => DebuggingTactics.printIndexed(msg)): TypedFunc[String, BelleExpr]),
+
+    //Relational Rules
+    PositionTacticInfo("TS",
+      SimpleDisplayInfo("Time Stretch", "TS"),
+      {case () => SequentCalculus.timeStretch})
   )
 
   /**

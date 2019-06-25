@@ -241,4 +241,6 @@ trait SequentCalculus {
   /** Commute equality `a=b` to `b=a` */
   lazy val commuteEqual       : DependentPositionTactic = useAt("= commute")
 
+  //Relational
+  val timeStretch: BuiltInRightTactic = "TS" by { (pr:ProvableSig, pos:SuccPosition) => pr(TimeStretch(pos.checkTop), 0) }
 }
