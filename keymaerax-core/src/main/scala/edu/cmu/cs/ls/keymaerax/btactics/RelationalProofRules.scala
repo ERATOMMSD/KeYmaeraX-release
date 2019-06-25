@@ -93,6 +93,23 @@ case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
   val name: String = "DifferentialInductiveInvariant"
 
   def apply(s: Sequent): immutable.List[Sequent] = {
-    Nil
+    val Box(ODESystem(d, q), p) = s(pos)
+
+    val zero = Number(0)
+    //For now, we only use first order derivative, i.e. DII_1
+    val derivative = p match {
+      case Greater(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
+      case Greater(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
+      case Less(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
+      case Less(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
+      case GreaterEqual(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
+      case GreaterEqual(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
+      case LessEqual(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
+      case LessEqual(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
+      case _ => throw new MatchError("The postcondition: " + p.toString + " does not match the required inequality with 0.")
+    }
+
+    immutable.List(s.updated(pos, Imply(q, p)),
+      s.updated(pos, Box(ODESystem(d,And(q,p)), derivative)))
   }
 }

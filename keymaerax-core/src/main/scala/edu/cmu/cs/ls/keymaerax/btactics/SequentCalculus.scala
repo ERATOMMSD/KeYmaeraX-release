@@ -243,4 +243,7 @@ trait SequentCalculus {
 
   //Relational
   val timeStretch: BuiltInRightTactic = "TS" by { (pr:ProvableSig, pos:SuccPosition) => pr(TimeStretch(pos.checkTop), 0) }
+
+  val differentialInductiveInvariant: BuiltInRightTactic = "DII" by { (pr:ProvableSig, pos:SuccPosition) =>
+    pr(DifferentialInductiveInvariant(pos.checkTop), 0)}
 }

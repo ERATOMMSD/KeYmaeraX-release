@@ -1192,7 +1192,11 @@ object DerivationInfo {
     //Relational Rules
     PositionTacticInfo("TS",
       SimpleDisplayInfo("Time Stretch", "TS"),
-      {case () => SequentCalculus.timeStretch})
+      {case () => SequentCalculus.timeStretch}),
+
+    PositionTacticInfo("DII",
+      SimpleDisplayInfo("Differential Inductive Invariant", "DII"),
+      {case () => SequentCalculus.differentialInductiveInvariant})
   )
 
   /**

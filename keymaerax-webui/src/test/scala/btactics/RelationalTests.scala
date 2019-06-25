@@ -219,14 +219,94 @@ class RelationalTests extends FlatSpec with Matchers {
 
 
   //Differential Inductive Invariant
-  "Differential Inductive Invariant" should "perform successfully on a toy example" in {
-    val antecedent = IndexedSeq("x>=0".asFormula)
-    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&true}]x>=0".asFormula))
+  "Differential Inductive Invariant" should "perform successfully on a toy example with strict inequality" in {
+    val antecedent = IndexedSeq("x<0&y<0".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=-1&true}]0>x+y".asFormula))
     val result = List[Sequent](
-      Sequent(IndexedSeq("x>=0&true".asFormula), IndexedSeq("x>=0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1&true&x>=0}]x'>0".asFormula))
+      Sequent(IndexedSeq("x<0&y<0".asFormula), IndexedSeq("true->0>x+y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=-1&true&0>x+y}]0>(x+y)'".asFormula))
     )
 
     testRule(DifferentialInductiveInvariant(pos), sequent, result)
+  }
+
+  it should "perform successfully on a toy example with non-strict inequality" in {
+    val antecedent = IndexedSeq("x>=0".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&true}]x>=0".asFormula))
+    val result = List[Sequent](
+      Sequent(IndexedSeq("x>=0".asFormula), IndexedSeq("true->x>=0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&true&x>=0}](x)'>0".asFormula))
+    )
+
+    testRule(DifferentialInductiveInvariant(pos), sequent, result)
+  }
+
+  it should "throw an exception when applied to a formula without differential dynamics" in {
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=y->x>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[x:=y;]x>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[?x=y;]x>0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with differential dynamics nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=0&[{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=0|[{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=0->[{x'=v,v'=a&true}]x>=0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with differential dynamics nested in a hybrid program" in {
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[x:=y;{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[?x=y;{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{{x'=v,v'=a&true}}*]x>=0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with postcondition which is not inequality" in {
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](y=0&x>=0)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](y=0|x>=0)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](y=0->x>=0)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}?x=y;]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}x:=y;]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=1&true}]x>=0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with inequality postcondition which does not compare against zero" in {
+    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x>y".asFormula)))
+
+    an [AssertionError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x<=2".asFormula)))
+  }
+
+  it should "throw an exception when applied to a position which does not exist" in {
+    an [IndexOutOfBoundsException] should be thrownBy testRule(DifferentialInductiveInvariant(SeqPos(5).asInstanceOf[SuccPos]),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x>=0".asFormula)))
   }
 }
