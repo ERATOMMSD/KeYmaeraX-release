@@ -52,8 +52,8 @@ case class TimeStretch(pos: SuccPos) extends RightRule {
 
     require(x.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
     require(xs.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
-    require((StaticSemantics.boundVars(d) ++ StaticSemantics.vars(q))
-      .intersect(StaticSemantics.boundVars(ds) ++ StaticSemantics.vars(qs)).isEmpty, "Time Stretch requires disjoint dynamics.")
+    require((StaticSemantics.vars(d) ++ StaticSemantics.vars(q))
+      .intersect(StaticSemantics.vars(ds) ++ StaticSemantics.vars(qs)).isEmpty, "Time Stretch requires disjoint dynamics.")
 
     val ode = decomposeODE(d)
     val odes = decomposeODE(ds)
@@ -77,5 +77,22 @@ case class TimeStretch(pos: SuccPos) extends RightRule {
         val AtomicODE(dt, t) = a
         AtomicODE(dt, Times(t, timeStretchFunction))
       }))), And(q, qs)), b)))
+  }
+}
+
+/**
+  * Differential Inductive Invariant: invariant reasoning on first (n) derivatives.
+  * {{{
+  * G,Q |- p>=0, G |- [x'=f(x)&Q&p>=0] p'>0
+  * -------------
+  * G |- [x'=f(x)&Q] p>=0
+  * }}}
+  */
+// DII Differential Inductive Invariant
+case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
+  val name: String = "DifferentialInductiveInvariant"
+
+  def apply(s: Sequent): immutable.List[Sequent] = {
+    Nil
   }
 }
