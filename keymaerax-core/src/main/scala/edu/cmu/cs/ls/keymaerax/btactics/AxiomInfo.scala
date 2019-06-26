@@ -1196,7 +1196,12 @@ object DerivationInfo {
 
     PositionTacticInfo("DII",
       SimpleDisplayInfo("Differential Inductive Invariant", "DII"),
-      {case () => SequentCalculus.differentialInductiveInvariant})
+      {case () => SequentCalculus.differentialInductiveInvariant}),
+
+    InputPositionTacticInfo("DDS",
+      SimpleDisplayInfo("Differential Dynamics Separation", "DDS"),
+      List(FormulaArg("g=h")),
+      _ => ((f: Formula) => SequentCalculus.differentialDynamicsSeparation(f)): TypedFunc[Formula, BelleExpr])
   )
 
   /**

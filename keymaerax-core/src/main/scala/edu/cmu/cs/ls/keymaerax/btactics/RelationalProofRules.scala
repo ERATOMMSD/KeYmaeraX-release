@@ -113,3 +113,27 @@ case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
       s.updated(pos, Box(ODESystem(d,And(q,p)), derivative)))
   }
 }
+
+/**
+  * Differential Dynamics Separation: split differential dynamics at a specific value.
+  * {{{
+  * G |- [?Q]g<=h, [x'=f(x)&Q&g<=h] P, [x'=f(x)&Q&g<=h;?g=h;x'=f(x)&Q] P)
+  * -------------
+  * G |- [x'=f(x)&Q] P
+  * }}}
+  */
+// DDS Differential Dynamics Separation
+case class DifferentialDynamicsSeparation(sepPoint: Formula, pos: SuccPos) extends RightRule {
+  val name: String = "DifferentialDynamicsSeparation"
+
+  def apply(s: Sequent): immutable.List[Sequent] = {
+    val Box(ODESystem(d, q), p) = s(pos)
+    val Equal(g, h) = sepPoint
+
+    require(StaticSemantics.boundVars(d).intersect(StaticSemantics.vars(h)).isEmpty)
+
+    immutable.List(s.updated(pos, Box(Test(q), LessEqual(g, h))),
+      s.updated(pos, Box(ODESystem(d, And(q, LessEqual(g, h))), p)),
+      s.updated(pos, Box(Compose(ODESystem(d, And(q, LessEqual(g, h))), Compose(Test(Equal(g, h)), ODESystem(d, q))), p)))
+  }
+}

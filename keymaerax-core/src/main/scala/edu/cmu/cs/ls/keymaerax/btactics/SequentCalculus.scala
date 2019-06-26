@@ -8,7 +8,6 @@ import edu.cmu.cs.ls.keymaerax.bellerophon._
 import edu.cmu.cs.ls.keymaerax.btactics.TacticFactory._
 import edu.cmu.cs.ls.keymaerax.btactics.Augmentors._
 import edu.cmu.cs.ls.keymaerax.btactics.TactixLibrary._
-import edu.cmu.cs.ls.keymaerax.core
 import edu.cmu.cs.ls.keymaerax.core._
 import edu.cmu.cs.ls.keymaerax.pt.ProvableSig
 
@@ -246,4 +245,7 @@ trait SequentCalculus {
 
   val differentialInductiveInvariant: BuiltInRightTactic = "DII" by { (pr:ProvableSig, pos:SuccPosition) =>
     pr(DifferentialInductiveInvariant(pos.checkTop), 0)}
+
+  def differentialDynamicsSeparation(sepPoint : Formula): DependentPositionWithAppliedInputTactic =
+    ProofRuleTactics.differentialDynamicsSeparation(sepPoint)
 }

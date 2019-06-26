@@ -1,7 +1,7 @@
 package btactics
 
 import edu.cmu.cs.ls.keymaerax.bellerophon._
-import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialInductiveInvariant, TimeStretch}
+import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialDynamicsSeparation, DifferentialInductiveInvariant, TimeStretch}
 import edu.cmu.cs.ls.keymaerax.core.{And, Assign, AtomicODE, Box, DifferentialProduct, DifferentialSymbol, Except, ODESystem, PrettyPrinter, Real, Rule, SeqPos, Sequent, SuccPos, Test, UnitPredicational, Variable}
 import edu.cmu.cs.ls.keymaerax.parser.KeYmaeraXPrettyPrinter
 import edu.cmu.cs.ls.keymaerax.parser.StringConverter._
@@ -223,7 +223,7 @@ class RelationalTests extends FlatSpec with Matchers {
     val antecedent = IndexedSeq("x<0&y<0".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=-1&true}]0>x+y".asFormula))
     val result = List[Sequent](
-      Sequent(IndexedSeq("x<0&y<0".asFormula), IndexedSeq("true->0>x+y".asFormula)),
+      Sequent(antecedent, IndexedSeq("true->0>x+y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=-1&true&0>x+y}]0>(x+y)'".asFormula))
     )
 
@@ -234,7 +234,7 @@ class RelationalTests extends FlatSpec with Matchers {
     val antecedent = IndexedSeq("x>=0".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&true}]x>=0".asFormula))
     val result = List[Sequent](
-      Sequent(IndexedSeq("x>=0".asFormula), IndexedSeq("true->x>=0".asFormula)),
+      Sequent(antecedent, IndexedSeq("true->x>=0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&true&x>=0}](x)'>0".asFormula))
     )
 
@@ -307,6 +307,90 @@ class RelationalTests extends FlatSpec with Matchers {
 
   it should "throw an exception when applied to a position which does not exist" in {
     an [IndexOutOfBoundsException] should be thrownBy testRule(DifferentialInductiveInvariant(SeqPos(5).asInstanceOf[SuccPos]),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x>=0".asFormula)))
+  }
+
+
+  //Differential Dynamics Separation
+  "Differential Dynamics Separation" should "successfully separate dynamics in a toy example with constant" in {
+    val antecedent = IndexedSeq("x=0&v>=0".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[?true;]v<=3".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=3}]v>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=3}{?v=3;}{x'=v,v'=a&true}]v>0".asFormula))
+    )
+
+    testRule(DifferentialDynamicsSeparation("v=3".asFormula, pos), sequent, result)
+  }
+
+  it should "successfully separate dynamics in a toy example with polynomial" in {
+    val antecedent = IndexedSeq("x=0&v>=0".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[?true;]v<=y+3*a".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=y+3*a}]v>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=y+3*a}{?v=y+3*a;}{x'=v,v'=a&true}]v>0".asFormula))
+    )
+
+    testRule(DifferentialDynamicsSeparation("v=y+3*a".asFormula, pos), sequent, result)
+  }
+
+  it should "throw an exception when applied to a formula without differential dynamics" in {
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=y->x>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[x:=y;]x>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[?x=y;]x>0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with differential dynamics nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=0&[{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=0|[{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=0->[{x'=v,v'=a&true}]x>=0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with differential dynamics nested in a hybrid program" in {
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[x:=y;{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[?x=y;{x'=v,v'=a&true}]x>=0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{{x'=v,v'=a&true}}*]x>=0".asFormula)))
+  }
+
+  it should "throw an exception when applied with split condition which is not equality" in {
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("v<3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=y->x>0".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("[v:=3;]v=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+  }
+
+  it should "throw an exception when applied with split condition which depends on the dynamics on both sides" in {
+    an [IllegalArgumentException] should be thrownBy testRule(DifferentialDynamicsSeparation("v=x".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(DifferentialDynamicsSeparation("v=3+(x*y)".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a position which does not exist" in {
+    an [IndexOutOfBoundsException] should be thrownBy testRule(
+      DifferentialDynamicsSeparation("x=3".asFormula, SeqPos(5).asInstanceOf[SuccPos]),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x>=0".asFormula)))
   }
 }

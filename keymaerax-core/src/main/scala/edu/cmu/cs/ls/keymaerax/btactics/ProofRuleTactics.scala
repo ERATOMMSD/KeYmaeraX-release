@@ -243,4 +243,14 @@ private object ProofRuleTactics extends Logging {
       provable(core.CloseFalse(pos.top), 0)
     }
   }
+
+  //Relational
+  def differentialDynamicsSeparation(f: Formula): DependentPositionWithAppliedInputTactic =
+    "DDS" byWithInput(f, (pos: Position, _: Sequent) => {
+    new BuiltInTactic("DDS") {
+      override def result(provable: ProvableSig): ProvableSig = {
+        provable(DifferentialDynamicsSeparation(f, pos.checkSucc.checkTop), 0)
+      }
+    }
+  })
 }
