@@ -245,11 +245,11 @@ private object ProofRuleTactics extends Logging {
   }
 
   //Relational
-  def differentialDynamicsSeparation(f: Formula): DependentPositionWithAppliedInputTactic =
-    "DDS" byWithInput(f, (pos: Position, _: Sequent) => {
-    new BuiltInTactic("DDS") {
+  def partialTimeStretch(f: Formula): DependentPositionWithAppliedInputTactic =
+    "PTS" byWithInput(f, (pos: Position, _: Sequent) => {
+    new BuiltInTactic("PTS") {
       override def result(provable: ProvableSig): ProvableSig = {
-        provable(DifferentialDynamicsSeparation(f, pos.checkSucc.checkTop), 0)
+        provable(PartialTimeStretch(f, pos.checkSucc.checkTop), 0)
       }
     }
   })

@@ -246,6 +246,6 @@ trait SequentCalculus {
   val differentialInductiveInvariant: BuiltInRightTactic = "DII" by { (pr:ProvableSig, pos:SuccPosition) =>
     pr(DifferentialInductiveInvariant(pos.checkTop), 0)}
 
-  def differentialDynamicsSeparation(sepPoint : Formula): DependentPositionWithAppliedInputTactic =
-    ProofRuleTactics.differentialDynamicsSeparation(sepPoint)
+  def partialTimeStretch(splitPoint : Formula): DependentPositionWithAppliedInputTactic =
+    ProofRuleTactics.partialTimeStretch(splitPoint)
 }

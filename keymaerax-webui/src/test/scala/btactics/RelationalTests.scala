@@ -1,8 +1,8 @@
 package btactics
 
 import edu.cmu.cs.ls.keymaerax.bellerophon._
-import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialDynamicsSeparation, DifferentialInductiveInvariant, TimeStretch}
-import edu.cmu.cs.ls.keymaerax.core.{And, Assign, AtomicODE, Box, DifferentialProduct, DifferentialSymbol, Except, ODESystem, PrettyPrinter, Real, Rule, SeqPos, Sequent, SuccPos, Test, UnitPredicational, Variable}
+import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialInductiveInvariant, PartialTimeStretch, TimeStretch}
+import edu.cmu.cs.ls.keymaerax.core.{PrettyPrinter, Rule, SeqPos, Sequent, SuccPos}
 import edu.cmu.cs.ls.keymaerax.parser.KeYmaeraXPrettyPrinter
 import edu.cmu.cs.ls.keymaerax.parser.StringConverter._
 import edu.cmu.cs.ls.keymaerax.pt.ProvableSig
@@ -71,6 +71,18 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{?true&2*y>=2;}]y=x".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&true}{y'=2&2*y>=2}]1/2>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&true&2*y>=2}]x+y>0".asFormula))
+    )
+
+    testRule(TimeStretch(pos), sequent, result)
+  }
+
+  it should "Successfully merge dynamics for a toy example with box in postcondition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;][x:=y*2;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}]1/2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}][x:=y*2;]x+y>0".asFormula))
     )
 
     testRule(TimeStretch(pos), sequent, result)
@@ -311,86 +323,219 @@ class RelationalTests extends FlatSpec with Matchers {
   }
 
 
-  //Differential Dynamics Separation
-  "Differential Dynamics Separation" should "successfully separate dynamics in a toy example with constant" in {
-    val antecedent = IndexedSeq("x=0&v>=0".asFormula)
-    val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula))
+  //Partial Time Stretch
+  "Partial Time Stretch" should "successfully merge dynamics in a toy example" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
     val result = List[Sequent](
-      Sequent(antecedent, IndexedSeq("[?true;]v<=3".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=3}]v>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=3}{?v=3;}{x'=v,v'=a&true}]v>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
+      Sequent(IndexedSeq("x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
     )
 
-    testRule(DifferentialDynamicsSeparation("v=3".asFormula, pos), sequent, result)
+    testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
   }
 
-  it should "successfully separate dynamics in a toy example with polynomial" in {
-    val antecedent = IndexedSeq("x=0&v>=0".asFormula)
-    val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula))
+  it should "successfully merge dynamics in a toy example with switched exit condition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
     val result = List[Sequent](
-      Sequent(antecedent, IndexedSeq("[?true;]v<=y+3*a".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=y+3*a}]v>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&true&v<=y+3*a}{?v=y+3*a;}{x'=v,v'=a&true}]v>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[?x<=X()&true;]y=x".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
+      Sequent(IndexedSeq("x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
     )
 
-    testRule(DifferentialDynamicsSeparation("v=y+3*a".asFormula, pos), sequent, result)
+    testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
   }
 
-  it should "throw an exception when applied to a formula without differential dynamics" in {
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("x=y->x>0".asFormula)))
+  it should "successfully merge dynamics in a toy example with box in postcondition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
+      Sequent(IndexedSeq("x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
+    )
 
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[x:=y;]x>0".asFormula)))
-
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[?x=y;]x>0".asFormula)))
+    testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
   }
 
-  it should "throw an exception when applied to a formula with differential dynamics nested in a propositional formula" in {
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("x=0&[{x'=v,v'=a&true}]x>=0".asFormula)))
+  it should "successfully merge dynamics in abstraction example" in {
+    val antecedent = IndexedSeq("A()>0&V()>0&x=0&y=0&0<v&v=w".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}?v=V();{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[?v<=V()&true;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}{y'=w,w'=A()&true}](v/w)>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&v<=V()&true}][?v=V();]w=V()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]((x)'>=0&[?v=V();{x'=v,v'=(A()*V())/v&true}](x)'>=0)".asFormula)),
+      Sequent(IndexedSeq("v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
+    )
 
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("x=0|[{x'=v,v'=a&true}]x>=0".asFormula)))
-
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("x=0->[{x'=v,v'=a&true}]x>=0".asFormula)))
+    testRule(PartialTimeStretch("w=V()".asFormula, pos), sequent, result)
   }
 
-  it should "throw an exception when applied to a formula with differential dynamics nested in a hybrid program" in {
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[x:=y;{x'=v,v'=a&true}]x>=0".asFormula)))
-
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[?x=y;{x'=v,v'=a&true}]x>=0".asFormula)))
-
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{{x'=v,v'=a&true}}*]x>=0".asFormula)))
+  it should "throw an exception when applied to a formula with single split differential dynamics" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}?x=y;]x<=y".asFormula)))
   }
 
-  it should "throw an exception when applied with split condition which is not equality" in {
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("v<3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
-
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("x=y->x>0".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
-
-    an [MatchError] should be thrownBy testRule(DifferentialDynamicsSeparation("[v:=3;]v=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+  it should "throw an exception when applied to a formula with single differential dynamics" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{y'=3&true}?x=y;]x<=y".asFormula)))
   }
 
-  it should "throw an exception when applied with split condition which depends on the dynamics on both sides" in {
-    an [IllegalArgumentException] should be thrownBy testRule(DifferentialDynamicsSeparation("v=x".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+  it should "throw an exception when applied to a formula with three differential dynamics" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}{z'=a&true}?x=y;]x<=y".asFormula)))
+  }
 
-    an [IllegalArgumentException] should be thrownBy testRule(DifferentialDynamicsSeparation("v=3+(x*y)".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]v>0".asFormula)))
+  it should "throw an exception when applied to a formula without split dynamics" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}{y'=3&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with two split differential dynamics" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?y'=Y();{y'=a&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula without exit condition" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with exit condition which is not equality" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x>0;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with differential dynamics in the wrong order" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{y'=3&true}{x'=a-4&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}{y'=3&true}?x=X();{x'=a-4&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{y'=3&true}{x'=a&x<=X()}?x=X();{x'=a-4&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("x=y&[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("x=y|[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("x=y->[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula nested in a discrete program" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[x:=y;{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[?x=y;{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;}*]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with the second dynamics nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}](x=y&[{y'=3&true}?x=y;]x<=y)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}](x=y|[{y'=3&true}?x=y;]x<=y)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}](x=y->[{y'=3&true}?x=y;]x<=y)".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with the second dynamcis nested in a discrete program" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}x:=y;{y'=3&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}?x=y;{y'=3&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{{y'=3&true}?x=y;}*]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with the exit condition nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}](x=y&[?x=y;]x<=y)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}](x=y|[?x=y;]x<=y)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}](x=y->[?x=y;]x<=y)".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with the exit condition nested in a discrete program" in {
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}x:=y;?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}{?x=y;}*]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to an exit condition which is not a relation" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=0;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?10=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to an exit condition which mixes variables from the two dynamics" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y*v;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?w+x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to two differential dynamics sharing a differential (LHS) variable" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3,x'=a-2&true}?x=y;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4,y'=12&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to two differential dynamics sharing a definition (RHS) variable" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=x&true}?x=y;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-y&true}{y'=3&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to two differential dynamics sharing a variable in evolution domain constraints" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&y<=x}?x=y;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&x+12>y*3}{y'=3&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to dynamics with split using variable from the second dynamics" in {
+    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X()+y;{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
   }
 
   it should "throw an exception when applied to a position which does not exist" in {
-    an [IndexOutOfBoundsException] should be thrownBy testRule(
-      DifferentialDynamicsSeparation("x=3".asFormula, SeqPos(5).asInstanceOf[SuccPos]),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x>=0".asFormula)))
+    an [IndexOutOfBoundsException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, SeqPos(5).asInstanceOf[SuccPos]),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula)))
   }
 }
