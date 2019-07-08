@@ -253,6 +253,17 @@ class RelationalTests extends FlatSpec with Matchers {
     testRule(DifferentialInductiveInvariant(pos), sequent, result)
   }
 
+  it should "perform successfully on a toy example with equality" in {
+    val antecedent = IndexedSeq("x=0".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=0&true}]x=0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("true->x=0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=0&true&x=0}](x)'=0".asFormula))
+    )
+
+    testRule(DifferentialInductiveInvariant(pos), sequent, result)
+  }
+
   it should "throw an exception when applied to a formula without differential dynamics" in {
     an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y->x>0".asFormula)))
@@ -286,10 +297,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(IndexedSeq(), IndexedSeq("[{{x'=v,v'=a&true}}*]x>=0".asFormula)))
   }
 
-  it should "throw an exception when applied to a formula with postcondition which is not inequality" in {
-    an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}]x=0".asFormula)))
-
+  it should "throw an exception when applied to a formula with postcondition which is not comparison" in {
     an [MatchError] should be thrownBy testRule(DifferentialInductiveInvariant(pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](y=0&x>=0)".asFormula)))
 
@@ -332,7 +340,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
-      Sequent(IndexedSeq("x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
+      Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
     )
 
     testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
@@ -346,7 +354,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
-      Sequent(IndexedSeq("x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
+      Sequent(IndexedSeq("y=x&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
     )
 
     testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
@@ -360,7 +368,21 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
-      Sequent(IndexedSeq("x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
+      Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
+    )
+
+    testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
+  }
+
+  it should "successfully merge dynamics in a toy example given as nested modalities" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}][?x=X();][{x'=a-4&true}][{y'=3&true}][?x=y;][x:=y-5;]x<=y".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
+      Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
     )
 
     testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
@@ -374,7 +396,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}{y'=w,w'=A()&true}](v/w)>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&v<=V()&true}][?v=V();]w=V()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]((x)'>=0&[?v=V();{x'=v,v'=(A()*V())/v&true}](x)'>=0)".asFormula)),
-      Sequent(IndexedSeq("v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
+      Sequent(IndexedSeq("(A()>0&V()>0)&x=y&v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
     )
 
     testRule(PartialTimeStretch("w=V()".asFormula, pos), sequent, result)

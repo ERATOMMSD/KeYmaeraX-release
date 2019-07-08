@@ -131,7 +131,9 @@ case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
       case GreaterEqual(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
       case LessEqual(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
       case LessEqual(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
-      case _ => throw new MatchError("The postcondition: " + p.toString + " does not match the required inequality with 0.")
+      case Equal(g, Number(z)) => Equal(Differential(g), zero).ensuring(z == 0)
+      case Equal(Number(z), g) => Equal(zero, Differential(g)).ensuring(z == 0)
+      case _ => throw new MatchError("The postcondition: " + p.toString + " does not match the required comparison with 0.")
     }
 
     immutable.List(s.updated(pos, Imply(q, p)),
@@ -142,8 +144,8 @@ case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
 /**
   * Partial Time Stretch: Split and dynamics and synchronise with first part of the second dynamics along a custom time stretch function
   * {{{
-  * G |- [?Q&R]j(x)=k(y), [x'=f(x)&Q]j'(x)>0, [y'=d(y)&R]k'(y)>0, [x'=f(x),y'=d(y)&Q&R;?B(x)]C(y)
-  * B(x) |- [x'=e(x)&P] j'(x)>=0   B(x),C(y) |- [x'=e(x)&P;y'=d(y)&R;?g(x)=h(y)] A
+  * G |- [?Q&R]g(x)=h(y), [{x'=f(x)&Q}{y'=d(y)&R}]g'/h'>0, [x'=f(x),y'=d(y)&Q&R;?B(x)]C(y), [x'=f(x)&Q]g'>=0&[?B(x);x'=e(x)&P]g'>=0
+  * G(\x,\y),g(x)=h(y),B(x),C(y) |- [x'=e(x)&P;y'=d(y)&R;?g(x)=h(y)] A
   * -------------
   * G |- [x'=f(x)&Q;?B(x);x'=e(x)&P;y'=d(y)&R;?g(x)=h(y)] A
   * }}}
@@ -154,7 +156,7 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
 
   def parseExitCondition(program: Program, post: Formula) : (Program, Formula, Formula) = {
     program match {
-      case Compose(dynamics, Test(e)) => (dynamics, e, post)
+      case Compose(Compose(left, right), Test(e)) => (Compose(left, right), e, post) //The Compose is technical - we need it to not mistake Test(p) for Test(e)
       case Compose(left, Compose(right, Test(e))) => (Compose(left, right), e, post)
       case Compose(left, Compose(center, Compose(right, Test(e)))) => (Compose(left, Compose(center, right)), e, post)
       case Compose(odea, Compose(p, Compose(odeb, Compose(odes, Test(e))))) => (Compose(odea, Compose(p, Compose(odeb, odes))), e, post)
@@ -184,6 +186,27 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
     (odea, odeb, odes, p, e, b)
   }
 
+  def cleanAntecedent(antecedent : Formula, boundVars : SetLattice[Variable]) : Formula = {
+    if (StaticSemantics.vars(antecedent).intersect(boundVars).isEmpty)
+      antecedent
+    else {
+      antecedent match {
+        case And(l, r) =>
+          val left = cleanAntecedent(l, boundVars)
+          val right = cleanAntecedent(r, boundVars)
+          left match {
+            case True => right
+            case _ => right match {
+              case True => left
+              case _ => And(left, right)
+            }
+          }
+        case Imply(l, r) => if (StaticSemantics.vars(l).intersect(boundVars).isEmpty) Imply(l, cleanAntecedent(r, boundVars)) else True
+        case _ => True
+      }
+    }
+  }
+
   def apply(s: Sequent): immutable.List[Sequent] = {
     val (odea, odeb, odes, p, e, b) = parse(s(pos))
 
@@ -196,11 +219,17 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
     val Equal(g, gs) = e
     val monoCond = GreaterEqual(Differential(if (checkOrder(odea, odes, e)) g else gs), Number(0))
 
+    val ante = cleanAntecedent(s(AntePos(0).ensuring(ap => ap.isAnte)),
+      StaticSemantics.boundVars(odea) ++ StaticSemantics.boundVars(odeb) ++ StaticSemantics.boundVars(odes)) match {
+      case True => And(e, And(p, splitPoint))
+      case a => And(a, And(e, And(p, splitPoint)))
+    }
+
     val ts = TimeStretch(pos)
     ts.apply(s.updated(pos, Box(Compose(Compose(odea, odes), Test(e)), Box(Test(p), splitPoint)))) ++
     immutable.List(
       s.updated(pos, Box(odea, And(monoCond, Box(Compose(Test(p), odeb), monoCond)))),
-      Sequent(IndexedSeq(And(p, splitPoint)), IndexedSeq(Box(Compose(odeb, Compose(odes, Test(e))), b))))
+      Sequent(IndexedSeq(ante), IndexedSeq(Box(Compose(odeb, Compose(odes, Test(e))), b))))
   }
 }
 
