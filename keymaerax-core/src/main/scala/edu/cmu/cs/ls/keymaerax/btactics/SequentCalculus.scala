@@ -248,4 +248,6 @@ trait SequentCalculus {
 
   def partialTimeStretch(splitPoint : Formula): DependentPositionWithAppliedInputTactic =
     ProofRuleTactics.partialTimeStretch(splitPoint)
+
+  def monotonicConditionSwap: BuiltInRightTactic = "MCS" by { (pr:ProvableSig, pos:SuccPosition) => pr(MonotonicConditionSwap(pos.checkTop), 0) }
 }

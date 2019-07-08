@@ -1201,7 +1201,11 @@ object DerivationInfo {
     InputPositionTacticInfo("PTS",
       SimpleDisplayInfo("Partial Time Stretch", "PTS"),
       List(FormulaArg("P(y)")),
-      _ => ((f: Formula) => SequentCalculus.partialTimeStretch(f)): TypedFunc[Formula, BelleExpr])
+      _ => ((f: Formula) => SequentCalculus.partialTimeStretch(f)): TypedFunc[Formula, BelleExpr]),
+
+    PositionTacticInfo("MCS",
+      SimpleDisplayInfo("MonotonicConditionSwap", "MCS"),
+      {case () => SequentCalculus.monotonicConditionSwap})
   )
 
   /**

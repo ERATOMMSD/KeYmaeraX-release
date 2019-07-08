@@ -206,3 +206,52 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
   }
 }
 
+/**
+  * Monotonic Condition Swap: Swap the exit condition and postcondition of a relational formula, provided they are monotonic.
+  * {{{
+  * G |- [?Q&P]g(x)<=h(y), [x'=f(x)&Q]g'>0, [x'=f(x)&Q]j'>=0, [y'=e(y)&P]k'>=0, [x'=f(x)&Q;y'=e(y)&P;?j(x)=k(y)] g(x)>=h(y)
+  * -------------
+  * G |- [x'=f(x)&Q;y'=e(y)&P;?g(x)=h(y)] j(x)<=k(y)
+  * }}}
+  */
+// MCS Monotonic Condition Swap
+case class MonotonicConditionSwap(pos: SuccPos) extends RelationalProofRule {
+  val name: String = "MonotonicConditionSwap"
+
+  def apply(s: Sequent): immutable.List[Sequent] = {
+    val (o, os, e, b) = s(pos) match {
+      case Box(Compose(o_, Compose(os_, Test(e_))), b_) => (o_, os_, e_, b_)
+      case Box(Compose(Compose(o_, os_), Test(e_)), b_) => (o_, os_, e_, b_)
+      case Box(Compose(o_, os_), Box(Test(e_), b_)) => (o_, os_, e_, b_)
+      case Box(o_, Box(Compose(os_, Test(e_)), b_)) => (o_, os_, e_, b_)
+      case Box(o_, Box(os_, Box(Test(e_), b_))) => (o_, os_, e_, b_)
+      case _ => throw new MatchError("Monotonic Condition Swap requires two parallel dynamics, but found: " + s(pos))
+    }
+
+    require(StaticSemantics.boundVars(o).intersect(StaticSemantics.vars(os)).isEmpty)
+    require(StaticSemantics.vars(o).intersect(StaticSemantics.boundVars(os)).isEmpty)
+
+    val exitConditionOrder = checkOrder(o, os, e)
+    val Equal(g, h) = e
+    val (j, k, postconditionOrder, greater) = b match {
+      case GreaterEqual(j_, k_) => (j_, k_, checkOrder(o, os, Equal(j_, k_)), true)
+      case LessEqual(j_, k_) => (j_, k_, checkOrder(o, os, Equal(j_, k_)), false)
+      case _ => throw new MatchError("Monotonic Condition Swap requires inequality in postcondition but found: " + b)
+    }
+
+    require(StaticSemantics.boundVars(o).intersect(StaticSemantics.vars(if (exitConditionOrder) h else g)).isEmpty)
+    require(StaticSemantics.boundVars(os).intersect(StaticSemantics.vars(if (exitConditionOrder) g else h)).isEmpty)
+    require(StaticSemantics.boundVars(o).intersect(StaticSemantics.vars(if (postconditionOrder) k else j)).isEmpty)
+    require(StaticSemantics.boundVars(os).intersect(StaticSemantics.vars(if (postconditionOrder) j else k)).isEmpty)
+
+    val ODESystem(_, q) = o
+    val ODESystem(_, qs) = os
+
+    immutable.List(s.updated(pos, Box(Test(And(q, qs)), b)),
+      s.updated(pos, Box(o, Greater(Differential(if (exitConditionOrder) g else h), Number(0)))),
+      s.updated(pos, Box(o, GreaterEqual(Differential(if (postconditionOrder) j else k), Number(0)))),
+      s.updated(pos, Box(os, GreaterEqual(Differential(if (postconditionOrder) k else j), Number(0)))),
+      s.updated(pos, Box(Compose(Compose(o, os), Test(Equal(j, k))), if (greater ^ postconditionOrder) GreaterEqual(g, h) else LessEqual(g, h))))
+  }
+}
+
