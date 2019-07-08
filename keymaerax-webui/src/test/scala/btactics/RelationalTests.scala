@@ -396,7 +396,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}{y'=w,w'=A()&true}](v/w)>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&v<=V()&true}][?v=V();]w=V()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]((x)'>=0&[?v=V();{x'=v,v'=(A()*V())/v&true}](x)'>=0)".asFormula)),
-      Sequent(IndexedSeq("(A()>0&V()>0)&x=y&v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
+      Sequent(IndexedSeq("x=y&v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
     )
 
     testRule(PartialTimeStretch("w=V()".asFormula, pos), sequent, result)

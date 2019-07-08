@@ -186,27 +186,6 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
     (odea, odeb, odes, p, e, b)
   }
 
-  def cleanAntecedent(antecedent : Formula, boundVars : SetLattice[Variable]) : Formula = {
-    if (StaticSemantics.vars(antecedent).intersect(boundVars).isEmpty)
-      antecedent
-    else {
-      antecedent match {
-        case And(l, r) =>
-          val left = cleanAntecedent(l, boundVars)
-          val right = cleanAntecedent(r, boundVars)
-          left match {
-            case True => right
-            case _ => right match {
-              case True => left
-              case _ => And(left, right)
-            }
-          }
-        case Imply(l, r) => if (StaticSemantics.vars(l).intersect(boundVars).isEmpty) Imply(l, cleanAntecedent(r, boundVars)) else True
-        case _ => True
-      }
-    }
-  }
-
   def apply(s: Sequent): immutable.List[Sequent] = {
     val (odea, odeb, odes, p, e, b) = parse(s(pos))
 
@@ -219,17 +198,11 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
     val Equal(g, gs) = e
     val monoCond = GreaterEqual(Differential(if (checkOrder(odea, odes, e)) g else gs), Number(0))
 
-    val ante = cleanAntecedent(s(AntePos(0).ensuring(ap => ap.isAnte)),
-      StaticSemantics.boundVars(odea) ++ StaticSemantics.boundVars(odeb) ++ StaticSemantics.boundVars(odes)) match {
-      case True => And(e, And(p, splitPoint))
-      case a => And(a, And(e, And(p, splitPoint)))
-    }
-
     val ts = TimeStretch(pos)
     ts.apply(s.updated(pos, Box(Compose(Compose(odea, odes), Test(e)), Box(Test(p), splitPoint)))) ++
     immutable.List(
       s.updated(pos, Box(odea, And(monoCond, Box(Compose(Test(p), odeb), monoCond)))),
-      Sequent(IndexedSeq(ante), IndexedSeq(Box(Compose(odeb, Compose(odes, Test(e))), b))))
+      Sequent(IndexedSeq(And(e, And(p, splitPoint))), IndexedSeq(Box(Compose(odeb, Compose(odes, Test(e))), b))))
   }
 }
 
