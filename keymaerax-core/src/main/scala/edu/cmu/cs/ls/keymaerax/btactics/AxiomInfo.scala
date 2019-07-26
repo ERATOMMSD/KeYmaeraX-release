@@ -1190,9 +1190,10 @@ object DerivationInfo {
       ,List(StringArg("msg")), _ => ((msg: String) => DebuggingTactics.printIndexed(msg)): TypedFunc[String, BelleExpr]),
 
     //Relational Rules
-    PositionTacticInfo("TS",
+    InputPositionTacticInfo("TS",
       SimpleDisplayInfo("Time Stretch", "TS"),
-      {case () => SequentCalculus.timeStretch}),
+      List(FormulaArg("g=h")),
+      _ => ((f: Formula) => SequentCalculus.timeStretch(f)): TypedFunc[Formula, BelleExpr]),
 
     PositionTacticInfo("DII",
       SimpleDisplayInfo("Differential Inductive Invariant", "DII"),

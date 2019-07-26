@@ -5,7 +5,12 @@ import edu.cmu.cs.ls.keymaerax.core._
 import scala.collection.immutable
 import scala.collection.immutable._
 
-
+/**
+  * Implements Proof Rules for Relational Reasoning.
+  *
+  * Created by Juraj Kolcak on 24/06/19.
+  * @see [[https://arxiv.org/abs/1903.00153 Relational Differential Dynamic Logic]].
+  */
 sealed abstract class RelationalProofRule() extends RightRule {
 
   def checkOrder(mainODE: Program, sharpODE: Program, exitCond: Formula) : Boolean = {
@@ -31,20 +36,20 @@ sealed abstract class RelationalProofRule() extends RightRule {
     }
   }
 
-  def computeTimeStretchFunction(mainODE : Program, sharpODE : Program, exitCond : Formula) : (Term, Program) = {
+  def computeTimeStretchFunction(mainODE : Program, sharpODE : Program, syncCond : Formula) : (Term, Program) = {
     require(StaticSemantics.boundVars(mainODE).intersect(StaticSemantics.vars(sharpODE)).isEmpty, "Time Stretch requires disjoint dynamics.")
     require(StaticSemantics.vars(mainODE).intersect(StaticSemantics.boundVars(sharpODE)).isEmpty, "Time Stretch requires disjoint dynamics.")
 
     val ODESystem(d, q) = mainODE
     val ODESystem(ds, qs) = sharpODE
-    val Equal(g, gs) = exitCond
+    val Equal(g, gs) = syncCond
 
     require(g.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
     require(gs.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
 
     val equations = decomposeODE(d)
     val sharpEquations = decomposeODE(ds)
-    val matchingOrder = checkOrder(mainODE, sharpODE, exitCond)
+    val matchingOrder = checkOrder(mainODE, sharpODE, syncCond)
 
     val dg = (if (matchingOrder) equations else sharpEquations)
       .find(a => StaticSemantics.vars(g).subsetOf(StaticSemantics.boundVars(a))) match {
@@ -68,13 +73,6 @@ sealed abstract class RelationalProofRule() extends RightRule {
 }
 
 /**
-  * Implements Proof Rules for Relational Reasoning.
-  *
-  * Created by Juraj Kolcak on 24/06/19.
-  * @see [[https://arxiv.org/abs/1903.00153 Relational Differential Dynamic Logic]].
-  */
-
-/**
   * Time Stretch: Synchronise two dynamics along a time stretch function.
   * {{{
   * G |- a=b, [D;E] a/b>0, [DE] c
@@ -83,7 +81,7 @@ sealed abstract class RelationalProofRule() extends RightRule {
   * }}}
   */
 // TS Time Stretch
-case class TimeStretch(pos: SuccPos) extends RelationalProofRule {
+case class TimeStretch(sync: Formula, pos: SuccPos) extends RelationalProofRule {
   val name: String = "TimeStretch"
 
   def apply(s: Sequent): immutable.List[Sequent] = {
@@ -96,12 +94,15 @@ case class TimeStretch(pos: SuccPos) extends RelationalProofRule {
       case _ => throw new MatchError("Time stretch requires two parallel dynamics, but found: " + s(pos))
     }
 
-    val (tsf, nd) = computeTimeStretchFunction(o, os, e)
+    val (tsf, nd) = computeTimeStretchFunction(o, os, sync)
     val ODESystem(_, q) = nd
+    val Divide(dg, dgs) = tsf
 
-    immutable.List(s.updated(pos, Box(Test(q), e)),
-      s.updated(pos, Box(Compose(o, os), Greater(tsf, Number(0)))),
-      s.updated(pos, Box(nd, b)))
+    immutable.List(s.updated(pos, Box(Test(q), sync)),
+      s.updated(pos, Box(Compose(Compose(o, os), Test(e)), sync)),
+      s.updated(pos, Box(o, Greater(dg, Number(0)))),
+      s.updated(pos, Box(os, Greater(dgs, Number(0)))),
+      s.updated(pos, Box(Compose(nd, Test(e)), b)))
   }
 }
 
@@ -198,9 +199,9 @@ case class PartialTimeStretch(splitPoint: Formula, pos: SuccPos) extends Relatio
     val Equal(g, gs) = e
     val monoCond = GreaterEqual(Differential(if (checkOrder(odea, odes, e)) g else gs), Number(0))
 
-    val ts = TimeStretch(pos)
-    ts.apply(s.updated(pos, Box(Compose(Compose(odea, odes), Test(e)), Box(Test(p), splitPoint)))) ++
-    immutable.List(
+    val ts = TimeStretch(e, pos)
+    val originalTS = ts.apply(s.updated(pos, Box(Compose(Compose(odea, odes), Test(e)), Box(Test(p), splitPoint))))
+    originalTS.take(1) ++ originalTS.drop(2) ++ immutable.List(
       s.updated(pos, Box(odea, And(monoCond, Box(Compose(Test(p), odeb), monoCond)))),
       Sequent(IndexedSeq(And(e, And(p, splitPoint))), IndexedSeq(Box(Compose(odeb, Compose(odes, Test(e))), b))))
   }

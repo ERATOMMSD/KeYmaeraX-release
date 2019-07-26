@@ -245,6 +245,15 @@ private object ProofRuleTactics extends Logging {
   }
 
   //Relational
+  def timeStretch(f: Formula): DependentPositionWithAppliedInputTactic =
+    "TS" byWithInput(f, (pos: Position, _: Sequent) => {
+      new BuiltInTactic("TS") {
+        override def result(provable: ProvableSig): ProvableSig = {
+          provable(TimeStretch(f, pos.checkSucc.checkTop), 0)
+        }
+      }
+    })
+
   def partialTimeStretch(f: Formula): DependentPositionWithAppliedInputTactic =
     "PTS" byWithInput(f, (pos: Position, _: Sequent) => {
     new BuiltInTactic("PTS") {

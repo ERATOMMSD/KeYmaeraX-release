@@ -57,23 +57,27 @@ class RelationalTests extends FlatSpec with Matchers {
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}]1/2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;]x+y>0".asFormula))
     )
 
-    testRule(TimeStretch(pos), sequent, result)
+    testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
   }
 
-  it should "Successfully merge dynamics for a toy example with inverse exit condition" in {
+  it should "Successfully merge dynamics for a toy example with inverse sync condition" in {
     val antecedent = IndexedSeq("x=y".asFormula)
-    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&true}{y'=2&2*y>=2}?y=x;]x+y>0".asFormula))
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&true}{y'=2&2*y>=2}?x=y;]x+y>0".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[{?true&2*y>=2;}]y=x".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1&true}{y'=2&2*y>=2}]1/2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&true&2*y>=2}]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{{x'=1&true}{y'=2&2*y>=2}}?x=y;]y=x".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&true}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&2*y>=2}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&true&2*y>=2}?x=y;]x+y>0".asFormula))
     )
 
-    testRule(TimeStretch(pos), sequent, result)
+    testRule(TimeStretch("y=x".asFormula, pos), sequent, result)
   }
 
   it should "Successfully merge dynamics for a toy example with box in postcondition" in {
@@ -81,11 +85,27 @@ class RelationalTests extends FlatSpec with Matchers {
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;][x:=y*2;]x+y>0".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}]1/2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}][x:=y*2;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;][x:=y*2;]x+y>0".asFormula))
     )
 
-    testRule(TimeStretch(pos), sequent, result)
+    testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
+  }
+
+  it should "Successfully merge dynamics for a toy example with sync condition different from exit condition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x*y>=8;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x*y>=8;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x*y>=8;]x+y>0".asFormula))
+    )
+
+    testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
   }
 
   it should "Successfully merge dynamics for the linear acceleration example" in {
@@ -94,138 +114,140 @@ class RelationalTests extends FlatSpec with Matchers {
       IndexedSeq("[{x'=v,v'=A()&true}{y'=w,w'=B()&true}?x=y;]v<=w".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[{?true&true;}]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=A()&true}{y'=w,w'=B()&true}]v/w>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=A(),y'=w*(v/w),w'=B()*(v/w)&true&true}]v<=w".asFormula))
+      Sequent(antecedent, IndexedSeq("[{{x'=v,v'=A()&true}{y'=w,w'=B()&true}}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=A()&true}]v>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=w,w'=B()&true}]w>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=A(),y'=w*(v/w),w'=B()*(v/w)&true&true}?x=y;]v<=w".asFormula))
     )
 
-    testRule(TimeStretch(pos), sequent, result)
+    testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
   }
 
   it should "throw an exception when applied to a formula with single differential dynamics" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula with three differential dynamics" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}{r'=2&r>8}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula without exit condition" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}]v<=w".asFormula)))
   }
 
-  it should "throw an exception when applied to a formula with exit condition which is not equality" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x<=y;]v<=w".asFormula)))
-  }
-
   it should "throw an exception when applied to a formula nested in a propositional formula" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y&[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y|[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y->[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula nested in a discrete program" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[x:=y;{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[?x=y;{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;}*]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula with the second dynamics nested in a propositional formula" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](x=y&[{y'=w,w'=b&true}?x=y;]v<=w)".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](x=y|[{y'=w,w'=b&true}?x=y;]v<=w)".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}](x=y->[{y'=w,w'=b&true}?x=y;]v<=w)".asFormula)))
   }
 
   it should "throw an exception when applied to a formula with the second dynamcis nested in a discrete program" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}][x:=y;{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}][?x=y;{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}][{{y'=w,w'=b&true}?x=y;}*]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula with the exit condition nested in a propositional formula" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}](x=y&[?x=y;]v<=w)".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}](x=y|[?x=y;]v<=w)".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}](x=y->[?x=y;]v<=w)".asFormula)))
   }
 
   it should "throw an exception when applied to a formula with the exit condition nested in a discrete program" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}x:=y;?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch(pos),
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}{?x=y;}*]v<=w".asFormula)))
   }
 
-  it should "throw an exception when applied to an exit condition which is not a relation" in {
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=3;]v<=w".asFormula)))
-
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?10=y;]v<=w".asFormula)))
+  it should "throw an exception when applied to a formula with sync condition which is not equality" in {
+    an [MatchError] should be thrownBy testRule(TimeStretch("x<=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
-  it should "throw an exception when applied to an exit condition which mixes variables from the two dynamics" in {
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y*v;]v<=w".asFormula)))
+  it should "throw an exception when applied to an sync condition which is not a relation" in {
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=3".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?w+x=y;]v<=w".asFormula)))
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("10=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
+  }
+
+  it should "throw an exception when applied to a sync condition which mixes variables from the two dynamics" in {
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y*v".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("w+x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to two differential dynamics sharing a differential (LHS) variable" in {
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b,x'=7&true}?x=y;]v<=w".asFormula)))
 
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a,y'=1&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to two differential dynamics sharing a definition (RHS) variable" in {
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w+x,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a*(y+1)&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to two differential dynamics sharing a variable in evolution domain constraints" in {
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&x<=y}?x=y;]v<=w".asFormula)))
 
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch(pos),
+    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&2+y>3*v}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a position which does not exist" in {
-    an [IndexOutOfBoundsException] should be thrownBy testRule(TimeStretch(SeqPos(5).asInstanceOf[SuccPos]),
+    an [IndexOutOfBoundsException] should be thrownBy testRule(TimeStretch("x=y".asFormula, SeqPos(5).asInstanceOf[SuccPos]),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 
@@ -337,8 +359,9 @@ class RelationalTests extends FlatSpec with Matchers {
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?x=y;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
     )
@@ -346,13 +369,14 @@ class RelationalTests extends FlatSpec with Matchers {
     testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
   }
 
-  it should "successfully merge dynamics in a toy example with switched exit condition" in {
+  it should "successfully merge dynamics in a toy example with switched sync condition" in {
     val antecedent = IndexedSeq("x=y".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]y=x".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?y=x;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("y=x&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
     )
@@ -365,8 +389,9 @@ class RelationalTests extends FlatSpec with Matchers {
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?x=y;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
     )
@@ -379,8 +404,9 @@ class RelationalTests extends FlatSpec with Matchers {
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}][?x=X();][{x'=a-4&true}][{y'=3&true}][?x=y;][x:=y-5;]x<=y".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}{y'=3&true}](a/3)>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?x=y;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
     )
@@ -393,8 +419,9 @@ class RelationalTests extends FlatSpec with Matchers {
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}?v=V();{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
     val result = List[Sequent](
       Sequent(antecedent, IndexedSeq("[?v<=V()&true;]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}{y'=w,w'=A()&true}](v/w)>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&v<=V()&true}][?v=V();]w=V()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]v>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=w,w'=A()&true}]w>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&v<=V()&true}?x=y;][?v=V();]w=V()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]((x)'>=0&[?v=V();{x'=v,v'=(A()*V())/v&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
     )

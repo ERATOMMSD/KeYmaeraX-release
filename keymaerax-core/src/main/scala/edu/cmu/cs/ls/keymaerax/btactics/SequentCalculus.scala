@@ -241,7 +241,8 @@ trait SequentCalculus {
   lazy val commuteEqual       : DependentPositionTactic = useAt("= commute")
 
   //Relational
-  val timeStretch: BuiltInRightTactic = "TS" by { (pr:ProvableSig, pos:SuccPosition) => pr(TimeStretch(pos.checkTop), 0) }
+  def timeStretch(syncCondition : Formula): DependentPositionWithAppliedInputTactic =
+    ProofRuleTactics.timeStretch(syncCondition)
 
   val differentialInductiveInvariant: BuiltInRightTactic = "DII" by { (pr:ProvableSig, pos:SuccPosition) =>
     pr(DifferentialInductiveInvariant(pos.checkTop), 0)}
@@ -249,5 +250,5 @@ trait SequentCalculus {
   def partialTimeStretch(splitPoint : Formula): DependentPositionWithAppliedInputTactic =
     ProofRuleTactics.partialTimeStretch(splitPoint)
 
-  def monotonicConditionSwap: BuiltInRightTactic = "MCS" by { (pr:ProvableSig, pos:SuccPosition) => pr(MonotonicConditionSwap(pos.checkTop), 0) }
+  val monotonicConditionSwap: BuiltInRightTactic = "MCS" by { (pr:ProvableSig, pos:SuccPosition) => pr(MonotonicConditionSwap(pos.checkTop), 0) }
 }
