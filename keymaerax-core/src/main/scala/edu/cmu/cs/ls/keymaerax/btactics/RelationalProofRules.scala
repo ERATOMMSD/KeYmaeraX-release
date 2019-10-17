@@ -206,6 +206,22 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     monotonicityFormula
   }
 
+  def synchronisePrograms(topPrograms: immutable.List[Program], bottomPrograms: immutable.List[Program]): Program = {
+    (topPrograms.headOption, bottomPrograms.headOption) match {
+      case (Some(test@Test(_)), _) => Compose(test, synchronisePrograms(topPrograms.tail, bottomPrograms))
+      case (Some(Choice(left, right)), _) => Choice(
+        synchronisePrograms(immutable.List[Program](left) ++ topPrograms.tail, bottomPrograms),
+        synchronisePrograms(immutable.List[Program](right) ++ topPrograms.tail, bottomPrograms))
+      case (_, Some(test@Test(_))) => Compose(test, synchronisePrograms(topPrograms, bottomPrograms.tail))
+      case (_, Some(Choice(left, right))) => Choice(
+        synchronisePrograms(topPrograms, immutable.List[Program](left) ++ bottomPrograms.tail),
+        synchronisePrograms(topPrograms, immutable.List[Program](right) ++ bottomPrograms.tail))
+      case (Some(ODESystem(_, constraint)), None) => Compose(Test(constraint), synchronisePrograms(topPrograms.tail, bottomPrograms))
+      case (None, Some(ODESystem(_, constraint))) => Compose(Test(constraint), synchronisePrograms(topPrograms, bottomPrograms.tail))
+      case (Some(topDynamics@ODESystem(_, _)), Some(bottomDynamics@ODESystem(_, _))) => Test(True) //TODO
+    }
+  }
+
   def apply(s: Sequent): immutable.List[Sequent] = {
     //Parsing
     val (originalProgram, instructionList, exitCondition, postcondition) = parseFormula(s(pos))
@@ -237,10 +253,14 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     val topProgramMonotonicity = constructMonotonicityFormula(topPrograms, topSync)
     val bottomProgramMonotonicity = constructMonotonicityFormula(bottomPrograms, bottomSync)
 
+    //Compute Actual Synchronisation
+    val synchronisedProgram = synchronisePrograms(topPrograms, bottomPrograms)
+
     immutable.List(s.updated(pos, sync),
       s.updated(pos, Box(originalProgram, sync)),
       s.updated(pos, topProgramMonotonicity),
-      s.updated(pos, bottomProgramMonotonicity))
+      s.updated(pos, bottomProgramMonotonicity),
+      s.updated(pos, Box(Compose(synchronisedProgram, exitCondition), postcondition)))
   }
 }
 
