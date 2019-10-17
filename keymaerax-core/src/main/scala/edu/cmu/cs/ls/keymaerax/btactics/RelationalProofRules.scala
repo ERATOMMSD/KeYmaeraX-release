@@ -287,10 +287,12 @@ case class TimeStretch(sync: Formula, pos: SuccPos) extends RelationalProofRule 
     }
 
     val (tsf, nd) = computeTimeStretchFunction(o, os, sync)
+    val ODESystem(_,q1) = o
+    val ODESystem(_,q2) = os
     val ODESystem(_, q) = nd
     val Divide(dg, dgs) = tsf
 
-    immutable.List(s.updated(pos, Box(Test(q), sync)),
+    immutable.List(s.updated(pos, Box(Test(And(q1,q2)), sync)),
       s.updated(pos, Box(Compose(Compose(o, os), Test(e)), sync)),
       s.updated(pos, Box(o, Greater(dg, Number(0)))),
       s.updated(pos, Box(os, Greater(dgs, Number(0)))),
