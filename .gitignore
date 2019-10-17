@@ -98,3 +98,7 @@ keymaerax-webui/src/main/resources/keymaerax-projects
 keymaerax-webui/src/test/resources/examples/course/labs/*
 release_scaladoc.pl
 redo
+
+\#build.sbt#
+
+slf4j-simple-1.7.25.jar
