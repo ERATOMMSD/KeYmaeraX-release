@@ -203,8 +203,8 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     //Split Programs
     val (topVariables, bottomVariables) = inferBoundVariableSets(sync, instructionList)
 
-    val topPrograms = instructionList.filter(program => !StaticSemantics.boundVars(program).intersect(topVariables).isEmpty)
-    val bottomPrograms = instructionList.filter(program => !StaticSemantics.boundVars(program).intersect(bottomVariables).isEmpty)
+    val topPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(topVariables).isEmpty)
+    val bottomPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(bottomVariables).isEmpty)
 
     //Check program independence
     topPrograms.foreach(program =>
@@ -215,6 +215,8 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
         program + " depends on " + StaticSemantics.vars(program).intersect(topVariables)))
 
     //TODO: Shovel the remaining programs into postcondition
+
+    immutable.List()
   }
 }
 
