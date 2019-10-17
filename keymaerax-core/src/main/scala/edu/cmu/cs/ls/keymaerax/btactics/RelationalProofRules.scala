@@ -35,6 +35,37 @@ sealed abstract class RelationalProofRule() extends RightRule {
       DifferentialProduct(ode.head, composeODE(ode.tail))
     }
   }
+  
+  def computeDerivative(func : Term, x : Variable) : Term = {
+     func match {
+         case BaseVariable(x.name,_,_) => Number(BigDecimal(1))
+         case BaseVariable(_,_,_) => Number(0)
+         case Number(_) => Number(0)
+         case Neg(funcp) => Neg(computeDerivative(funcp,x))
+         case Plus(func1,func2) => Plus(computeDerivative(func1,x),computeDerivative(func2,x))
+         case Minus(func1,func2) => Minus(computeDerivative(func1,x),computeDerivative(func2,x))
+         case Times(func1,func2) => Plus(Times(func1,computeDerivative(func2,x)),Times(computeDerivative(func1,x),func2))
+         case Divide(func1,func2) => Minus(Divide(computeDerivative(func1,x),func2),Divide(Times(func1,computeDerivative(func2,x)),Power(func2,Number(2))))
+         case Power(funcp,Number(n)) => require(n>=1, "The function: " + func.toString + " is not of the valid form."); 
+            Times(Number(n),Times(computeDerivative(funcp,x),Power(funcp,Number(n-1))))
+         case _ => throw new MatchError("The function: " + func.toString + " is not of the valid form.")
+      } 
+    }
+    
+    def computeLieDerivative(func : Term, ODE: List[AtomicODE]) : Option[Term] = {
+        ODE match {
+            case Nil =>  None
+            case AtomicODE(d,t)::rest => 
+                val b = StaticSemantics.boundVars(AtomicODE(d,t)).intersect(StaticSemantics.vars(func)).isEmpty
+                if (!b)
+                    computeLieDerivative(func,rest) match {
+                        case None => Some(Times(computeDerivative(func,d),t))
+                        case Some(s) => Some(Plus(s,Times(computeDerivative(func,d),t)))
+                    }
+                else 
+                    computeLieDerivative(func,rest)
+        }
+    }
 
   def computeTimeStretchFunction(mainODE : Program, sharpODE : Program, syncCond : Formula) : (Term, Program) = {
     require(StaticSemantics.boundVars(mainODE).intersect(StaticSemantics.vars(sharpODE)).isEmpty, "Time Stretch requires disjoint dynamics.")
@@ -44,22 +75,31 @@ sealed abstract class RelationalProofRule() extends RightRule {
     val ODESystem(ds, qs) = sharpODE
     val Equal(g, gs) = syncCond
 
-    require(g.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
-    require(gs.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
+//    require(g.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
+//    require(gs.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
 
     val equations = decomposeODE(d)
     val sharpEquations = decomposeODE(ds)
     val matchingOrder = checkOrder(mainODE, sharpODE, syncCond)
 
-    val dg = (if (matchingOrder) equations else sharpEquations)
-      .find(a => StaticSemantics.vars(g).subsetOf(StaticSemantics.boundVars(a))) match {
-      case Some(AtomicODE(_, dg_)) => dg_
-      case None => Number(0)
+    val dg = (if (matchingOrder) computeLieDerivative(g,equations) else computeLieDerivative(g,sharpEquations)) match {
+//    val dg = computeLieDerivative(g,equations) match {
+        case None => Number(0)
+        case Some(t) =>  val (u,p) = SimplifierV2.termSimp(t); u
+//            match {
+//            case (None,_) => throw new MatchError("Simplification of Lie derivative failed") 
+//            case (Some(u),_) => u
+//        }
+//      .find(a => StaticSemantics.vars(g).subsetOf(StaticSemantics.boundVars(a))) match {
+//      case Some(AtomicODE(_, dg_)) => dg_
+//      case None => Number(0)
     }
-    val dgs = (if (matchingOrder) sharpEquations else equations)
-      .find(a => StaticSemantics.vars(gs).subsetOf(StaticSemantics.boundVars(a))) match {
-      case Some(AtomicODE(_, dgs_)) => dgs_
-      case None => Number(0)
+    val dgs = (if (matchingOrder) computeLieDerivative(gs,sharpEquations) else computeLieDerivative(gs,equations)) match {
+        case None => Number(0)
+        case Some(t) =>  val (u,p) = SimplifierV2.termSimp(t); u
+//      .find(a => StaticSemantics.vars(gs).subsetOf(StaticSemantics.boundVars(a))) match {
+//      case Some(AtomicODE(_, dgs_)) => dgs_
+//      case None => Number(0)
     }
 
     val tsf = if (matchingOrder) Divide(dg, dgs) else Divide(dgs, dg)
@@ -67,7 +107,7 @@ sealed abstract class RelationalProofRule() extends RightRule {
     (tsf, ODESystem(DifferentialProduct(d, composeODE(sharpEquations.map(a => {
         val AtomicODE(dt, t) = a
         AtomicODE(dt, Times(t, tsf))
-      }))), And(q, qs)))
+      }))), And(And(And(q, qs),Greater(dg,Number(0))),Greater(dgs,Number(0)))))
   }
 
 }
