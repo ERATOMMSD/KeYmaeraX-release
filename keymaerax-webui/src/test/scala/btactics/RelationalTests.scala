@@ -56,10 +56,10 @@ class RelationalTests extends FlatSpec with Matchers {
     val antecedent = IndexedSeq("x=y".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
     val result = List[Sequent](
-      Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=y".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}](1*1>0 & true)".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}](1*2>0 & true)".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;]x+y>0".asFormula))
     )
 

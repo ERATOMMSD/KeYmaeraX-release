@@ -130,7 +130,7 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     }
   }
 
-  def parseFormula(formula: Formula): (immutable.List[Program], Test, Formula) = {
+  def parseFormula(formula: Formula): (Program, immutable.List[Program], Test, Formula) = {
     val (program, postcondition) = formula match {
       case Box(prog, pc) => (prog, pc)
       case _ => throw new MatchError("Generalised Synchronisation expects the formula to start with a box modality, but found: " + formula)
@@ -147,11 +147,11 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
       throw new MatchError("Generalised Synchronisation requires at least two hybrid programs in box modality, but found " + (instructionList.length - 1))
     }
 
-    (instructionList.init, exitCondition, postcondition)
+    (program, instructionList.init, exitCondition, postcondition)
   }
 
   def inferBoundVariableSets(sync: Formula, instructionList: immutable.List[Program]):
-    (SetLattice[Variable], SetLattice[Variable]) = {
+    (SetLattice[Variable], SetLattice[Variable], Term, Term) = {
     val (syncTop, syncBottom) = sync match {
       case Equal(left, right) => (left, right)
       case _ => throw new MatchError("Generalised Synchronisation expects synchronisation condition in the form of equality, but found: " + sync)
@@ -186,12 +186,29 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
       })
     }
 
-    (topVariables, bottomVariables)
+    (topVariables, bottomVariables, syncTop, syncBottom)
+  }
+
+  def constructMonotonicityFormula(programs: immutable.List[Program], sync: Term): Formula = {
+    var monotonicityFormula: Formula = True
+
+    programs.reverse.foreach {
+      case dynamics@ODESystem(ode, _) => computeLieDerivative(sync, decomposeODE(ode)) match{
+        case Some(derivative) => monotonicityFormula = Box(dynamics, And(Greater(derivative, Number(0)), monotonicityFormula))
+        case None => return False
+      }
+      case Choice(left, right) => monotonicityFormula = And(constructMonotonicityFormula(parseProgram(left), sync),
+        And(constructMonotonicityFormula(parseProgram(right), sync),
+          Box(Choice(left, right), monotonicityFormula)))
+      case Test(cond) => monotonicityFormula = Imply(cond, monotonicityFormula)
+    }
+
+    monotonicityFormula
   }
 
   def apply(s: Sequent): immutable.List[Sequent] = {
     //Parsing
-    val (instructionList, exitCondition, postcondition) = parseFormula(s(pos))
+    val (originalProgram, instructionList, exitCondition, postcondition) = parseFormula(s(pos))
 
     //Check For Assignments/Loops
     instructionList.foreach {
@@ -201,7 +218,7 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     }
 
     //Split Programs
-    val (topVariables, bottomVariables) = inferBoundVariableSets(sync, instructionList)
+    val (topVariables, bottomVariables, topSync, bottomSync) = inferBoundVariableSets(sync, instructionList)
 
     val topPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(topVariables).isEmpty)
     val bottomPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(bottomVariables).isEmpty)
@@ -214,9 +231,16 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
       require(StaticSemantics.vars(program).intersect(topVariables).isEmpty, "Generalised Synchronisation requires independent programs, but " +
         program + " depends on " + StaticSemantics.vars(program).intersect(topVariables)))
 
-    //TODO: Shovel the remaining programs into postcondition
+    //TODO: Shovel any remaining programs into postcondition
 
-    immutable.List()
+    //Compute monotonicity formulae
+    val topProgramMonotonicity = constructMonotonicityFormula(topPrograms, topSync)
+    val bottomProgramMonotonicity = constructMonotonicityFormula(bottomPrograms, bottomSync)
+
+    immutable.List(s.updated(pos, sync),
+      s.updated(pos, Box(originalProgram, sync)),
+      s.updated(pos, topProgramMonotonicity),
+      s.updated(pos, bottomProgramMonotonicity))
   }
 }
 
