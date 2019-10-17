@@ -1,7 +1,7 @@
 package btactics
 
 import edu.cmu.cs.ls.keymaerax.bellerophon._
-import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialInductiveInvariant, PartialTimeStretch, TimeStretch}
+import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialInductiveInvariant, GeneralisedSynchronisation, PartialTimeStretch, TimeStretch}
 import edu.cmu.cs.ls.keymaerax.core.{PrettyPrinter, Rule, SeqPos, Sequent, SuccPos}
 import edu.cmu.cs.ls.keymaerax.parser.KeYmaeraXPrettyPrinter
 import edu.cmu.cs.ls.keymaerax.parser.StringConverter._
@@ -26,8 +26,6 @@ class RelationalTests extends FlatSpec with Matchers {
 
   PrettyPrinter.setPrinter(KeYmaeraXPrettyPrinter)
 
-
-  //Time Stretch
   def testRule(rule: Rule, in: Sequent, out: List[Sequent]) {
     println("\tCheck " + rule)
     val pn = ProvableSig.startProof(in)
@@ -52,6 +50,50 @@ class RelationalTests extends FlatSpec with Matchers {
 
   val pos = SeqPos(1).asInstanceOf[SuccPos]
 
+
+  //Generalised Synchronisation
+  "Generalised Synchronisation Rule" should "Successfully merge to normal programs with only dynamics" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
+  it should "throw an exception when applied to a formula without programs to synchronise" in {
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[?x=y;]v<=w".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}?x=y;]v<=w".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula without exit condition" in {
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}]v<=w".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;{z'=u,u'=c&true}]v<=w".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=y&[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=y|[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+      Sequent(IndexedSeq(), IndexedSeq("x=y->[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
+  }
+
+  //Time Stretch
   "Time Stretch Rule" should "Successfully merge dynamics for a toy example" in {
     val antecedent = IndexedSeq("x=y".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))

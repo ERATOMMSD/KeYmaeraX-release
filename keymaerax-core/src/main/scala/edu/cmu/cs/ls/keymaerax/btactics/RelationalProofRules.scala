@@ -69,7 +69,113 @@ sealed abstract class RelationalProofRule() extends RightRule {
         AtomicODE(dt, Times(t, tsf))
       }))), And(q, qs)))
   }
+}
 
+/**
+  * Generalised Synchronisation: Synchronise two normal programs along an equality relation.
+  * {{{
+  * G |- g=h, [a;b;?E]g=h, D(N(a),g), D(N(b),h)
+  * -------------
+  * G |- [a;b;?E]A <=> [N(a)*N(b);?E]A
+  * }}}
+  */
+// gSync Generalised Synchronisation
+case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends RelationalProofRule {
+  val name: String = "GeneralisedSynchronisation"
+
+  def parseProgram(program: Program): immutable.List[Program] = {
+    program match {
+      case Compose(prog1, prog2) => parseProgram(prog1) ++ parseProgram(prog2)
+      case _ => immutable.List(program)
+    }
+  }
+
+  def parseFormula(formula: Formula): (immutable.List[Program], Test, Formula) = {
+    val (program, postcondition) = formula match {
+      case Box(prog, pc) => (prog, pc)
+      case _ => throw new MatchError("Generalised Synchronisation expects the formula to start with a box modality, but found: " + formula)
+    }
+
+    val instructionList = parseProgram(program)
+
+    val exitCondition = instructionList.last match {
+      case ec@Test(_) => ec
+      case _ => throw new MatchError("Generalised Synchronisation expects the programs to end with an exit condition in the form of test, but found: " + instructionList.last)
+    }
+
+    if (instructionList.length - 1 < 2) {
+      throw new MatchError("Generalised Synchronisation requires at least two hybrid programs in box modality, but found " + (instructionList.length - 1))
+    }
+
+    (instructionList.init, exitCondition, postcondition)
+  }
+
+  def inferBoundVariableSets(sync: Formula, instructionList: immutable.List[Program]):
+    (SetLattice[Variable], SetLattice[Variable]) = {
+    val (syncTop, syncBottom) = sync match {
+      case Equal(left, right) => (left, right)
+      case _ => throw new MatchError("Generalised Synchronisation expects synchronisation condition in the form of equality, but found: " + sync)
+    }
+
+    var topVariables: SetLattice[Variable] = null
+    var bottomVariables: SetLattice[Variable] = null
+
+    var newTopVariables = StaticSemantics.vars(syncTop)
+    var newBottomVariables = StaticSemantics.vars(syncBottom)
+
+    if (newTopVariables.isEmpty) {
+      throw new MatchError("Generalised Synchronisation expects non-constant synchronisation condition, but found: " + syncTop)
+    }
+    if (newBottomVariables.isEmpty) {
+      throw new MatchError("Generalised Synchronisation expects non-constant synchronisation condition, but found: " + syncBottom)
+    }
+
+    while (topVariables != newTopVariables || bottomVariables != newBottomVariables)
+    {
+      topVariables = newTopVariables
+      bottomVariables = newBottomVariables
+
+      instructionList.foreach(program => {
+        if (!StaticSemantics.boundVars(program).intersect(topVariables).isEmpty) {
+          newTopVariables = newTopVariables ++ StaticSemantics.boundVars(program)
+        }
+
+        if (!StaticSemantics.boundVars(program).intersect(bottomVariables).isEmpty) {
+          newBottomVariables = newBottomVariables ++ StaticSemantics.boundVars(program)
+        }
+      })
+    }
+
+    (topVariables, bottomVariables)
+  }
+
+  def apply(s: Sequent): immutable.List[Sequent] = {
+    //Parsing
+    val (instructionList, exitCondition, postcondition) = parseFormula(s(pos))
+
+    //Check For Assignments/Loops
+    instructionList.foreach {
+      case program@Assign(_, _) => throw new MatchError("Generalised Synchronisation expects no assignments in the program to be synchronised, but found: " + program)
+      case program@Loop(_) => throw new MatchError("Generalised Synchronisation expects no loops in the program to be synchronised, but found: " + program)
+      case _ =>
+    }
+
+    //Split Programs
+    val (topVariables, bottomVariables) = inferBoundVariableSets(sync, instructionList)
+
+    val topPrograms = instructionList.filter(program => !StaticSemantics.boundVars(program).intersect(topVariables).isEmpty)
+    val bottomPrograms = instructionList.filter(program => !StaticSemantics.boundVars(program).intersect(bottomVariables).isEmpty)
+
+    //Check program independence
+    topPrograms.foreach(program =>
+      require(StaticSemantics.vars(program).intersect(bottomVariables).isEmpty, "Generalised Synchronisation requires independent programs, but " +
+        program + " depends on " + StaticSemantics.vars(program).intersect(bottomVariables)))
+    bottomPrograms.foreach(program =>
+      require(StaticSemantics.vars(program).intersect(topVariables).isEmpty, "Generalised Synchronisation requires independent programs, but " +
+        program + " depends on " + StaticSemantics.vars(program).intersect(topVariables)))
+
+    //TODO: Shovel the remaining programs into postcondition
+  }
 }
 
 /**
