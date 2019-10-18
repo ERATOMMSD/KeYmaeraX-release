@@ -1,7 +1,7 @@
 package btactics
 
 import edu.cmu.cs.ls.keymaerax.bellerophon._
-import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialInductiveInvariant, GeneralisedSynchronisation, PartialTimeStretch, TimeStretch}
+import edu.cmu.cs.ls.keymaerax.btactics.{DifferentialInductiveInvariant, GeneralisedSynchronisation, PartialTimeStretch, TacticTestBase, TimeStretch}
 import edu.cmu.cs.ls.keymaerax.core.{PrettyPrinter, Rule, SeqPos, Sequent, SuccPos}
 import edu.cmu.cs.ls.keymaerax.parser.KeYmaeraXPrettyPrinter
 import edu.cmu.cs.ls.keymaerax.parser.StringConverter._
@@ -13,7 +13,7 @@ import scala.collection.immutable.{IndexedSeq, List}
 /**
   * Created by Juraj Kolcak on 24/06/19.
   */
-class RelationalTests extends FlatSpec with Matchers {
+class RelationalTests extends TacticTestBase with Matchers {
   val listener = new IOListener() {
     override def begin(input: BelleValue, expr: BelleExpr) : Unit = {
       println(expr.getClass)
