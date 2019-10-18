@@ -60,7 +60,7 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}](1*1>0 & true)".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&true}](1*2>0 & true)".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true}?x=y) & 1>0) & 2>0) ?x<8;]x+y>0".asFormula))
     )
 
     testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)

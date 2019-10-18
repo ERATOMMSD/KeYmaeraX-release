@@ -306,6 +306,7 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
           Compose(synchronisedDynamics, synchronisePrograms(topPrograms.tail, bottomPrograms))
         )
       }
+      case (None, None) => Test(True) //TODO
     }
   }
 
