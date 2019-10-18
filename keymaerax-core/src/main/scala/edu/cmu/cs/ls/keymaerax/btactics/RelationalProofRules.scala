@@ -150,7 +150,7 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     (program, instructionList.init, exitCondition, postcondition)
   }
 
-  def inferBoundVariableSets(sync: Formula, instructionList: immutable.List[Program]):
+  def inferBoundVariableSets(instructionList: immutable.List[Program]):
     (SetLattice[Variable], SetLattice[Variable], Term, Term) = {
     val (syncTop, syncBottom) = sync match {
       case Equal(left, right) => (left, right)
@@ -218,7 +218,13 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
         synchronisePrograms(topPrograms, immutable.List[Program](right) ++ bottomPrograms.tail))
       case (Some(ODESystem(_, constraint)), None) => Compose(Test(constraint), synchronisePrograms(topPrograms.tail, bottomPrograms))
       case (None, Some(ODESystem(_, constraint))) => Compose(Test(constraint), synchronisePrograms(topPrograms, bottomPrograms.tail))
-      case (Some(topDynamics@ODESystem(_, _)), Some(bottomDynamics@ODESystem(_, _))) => Test(True) //TODO
+      case (Some(topDynamics@ODESystem(_, _)), Some(bottomDynamics@ODESystem(_, _))) => {
+        val (_, synchronisedDynamics) = computeTimeStretchFunction(topDynamics, bottomDynamics, sync)
+
+        Choice(Compose(synchronisedDynamics, synchronisePrograms(topPrograms, bottomPrograms.tail)),
+          Compose(synchronisedDynamics, synchronisePrograms(topPrograms.tail, bottomPrograms))
+        )
+      }
     }
   }
 
@@ -234,7 +240,7 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     }
 
     //Split Programs
-    val (topVariables, bottomVariables, topSync, bottomSync) = inferBoundVariableSets(sync, instructionList)
+    val (topVariables, bottomVariables, topSync, bottomSync) = inferBoundVariableSets(instructionList)
 
     val topPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(topVariables).isEmpty)
     val bottomPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(bottomVariables).isEmpty)
