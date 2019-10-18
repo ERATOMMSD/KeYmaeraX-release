@@ -102,7 +102,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&(((x<8&true)&1>0)&2>0)}?x=y;]x+y>0".asFormula))
     )
 
     testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
@@ -116,7 +116,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{{x'=1&true}{y'=2&2*y>=2}}?x=y;]y=x".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&true}]1>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&2*y>=2}]2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&true&2*y>=2}?x=y;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((true&2*y>=2)&2>0)&1>0}?x=y;]x+y>0".asFormula))
     )
 
     testRule(TimeStretch("y=x".asFormula, pos), sequent, result)
@@ -130,7 +130,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x=y;][x:=y*2;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true)&1>0)&2>0}?x=y;][x:=y*2;]x+y>0".asFormula))
     )
 
     testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
@@ -144,7 +144,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x*y>=8;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&x<8&true}?x*y>=8;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true)&1>0)&2>0}?x*y>=8;]x+y>0".asFormula))
     )
 
     testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
@@ -159,7 +159,7 @@ class RelationalTests extends FlatSpec with Matchers {
       Sequent(antecedent, IndexedSeq("[{{x'=v,v'=A()&true}{y'=w,w'=B()&true}}?x=y;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=A()&true}]v>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=w,w'=B()&true}]w>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=A(),y'=w*(v/w),w'=B()*(v/w)&true&true}?x=y;]v<=w".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=A(),y'=w*(v/w),w'=B()*(v/w)&((true&true)&v>0)&w>0}?x=y;]v<=w".asFormula))
     )
 
     testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
