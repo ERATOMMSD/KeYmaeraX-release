@@ -253,6 +253,15 @@ private object ProofRuleTactics extends Logging {
         }
       }
     })
+    
+ def generalisedSynchronisation(f: Formula): DependentPositionWithAppliedInputTactic =
+    "Sync" byWithInput(f, (pos: Position, _: Sequent) => {
+      new BuiltInTactic("Sync") {
+        override def result(provable: ProvableSig): ProvableSig = {
+          provable(GeneralisedSynchronisation(f, pos.checkSucc.checkTop), 0)
+        }
+      }
+    })
 
   def partialTimeStretch(f: Formula): DependentPositionWithAppliedInputTactic =
     "PTS" byWithInput(f, (pos: Position, _: Sequent) => {

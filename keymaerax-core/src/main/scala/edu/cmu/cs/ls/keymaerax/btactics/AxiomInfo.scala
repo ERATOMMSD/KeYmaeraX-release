@@ -1194,6 +1194,11 @@ object DerivationInfo {
       SimpleDisplayInfo("Time Stretch", "TS"),
       List(FormulaArg("g=h")),
       _ => ((f: Formula) => SequentCalculus.timeStretch(f)): TypedFunc[Formula, BelleExpr]),
+      
+    InputPositionTacticInfo("Sync",
+      SimpleDisplayInfo("Generalised Synchronisation", "Sync"),
+      List(FormulaArg("g=h")),
+      _ => ((f: Formula) => SequentCalculus.generalisedSynchronisation(f)): TypedFunc[Formula, BelleExpr]),
 
     PositionTacticInfo("DII",
       SimpleDisplayInfo("Differential Inductive Invariant", "DII"),

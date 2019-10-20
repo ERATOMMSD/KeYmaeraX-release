@@ -2,6 +2,7 @@ package edu.cmu.cs.ls.keymaerax.btactics
 
 import edu.cmu.cs.ls.keymaerax.core._
 import edu.cmu.cs.ls.keymaerax.btactics.helpers.DifferentialHelper
+//import edu.cmu.cs.ls.keymaerax.btactics.SimplifierV3
 
 import scala.collection.immutable
 import scala.collection.immutable._
@@ -274,17 +275,18 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     var monotonicityFormula: Formula = True
 
     programs.reverse.foreach {
-      case dynamics@ODESystem(ode, _) => computeLieDerivative(sync, decomposeODE(ode)) match{
-        case Some(derivative) => monotonicityFormula = Box(dynamics, And(Greater(derivative, Number(0)), monotonicityFormula))
-        case None => return False
-      }
+      case dynamics@ODESystem(ode, _) => monotonicityFormula = Box(dynamics, And(Greater(DifferentialHelper.lieDerivative(ode,sync), Number(0)), monotonicityFormula))
+//       match{
+//         case Some(derivative) => monotonicityFormula = Box(dynamics, And(Greater(derivative, Number(0)), monotonicityFormula))
+//         case None => return False
+//       }
       case Choice(left, right) => monotonicityFormula = And(constructMonotonicityFormula(parseProgram(left), sync),
         And(constructMonotonicityFormula(parseProgram(right), sync),
           Box(Choice(left, right), monotonicityFormula)))
       case Test(cond) => monotonicityFormula = Imply(cond, monotonicityFormula)
     }
 
-    monotonicityFormula
+    SimplifierV3.formulaSimp(monotonicityFormula,SimplifierV3.emptyCtx,SimplifierV3.defaultFaxs,SimplifierV3.defaultTaxs)._1
   }
 
   def synchronisePrograms(topPrograms: immutable.List[Program], bottomPrograms: immutable.List[Program]): Program = {
@@ -405,17 +407,31 @@ case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
 
     val zero = Number(0)
     //For now, we only use first order derivative, i.e. DII_1
+//     val derivative = p match {
+//       case Greater(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
+//       case Greater(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
+//       case Less(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
+//       case Less(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
+//       case GreaterEqual(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
+//       case GreaterEqual(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
+//       case LessEqual(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
+//       case LessEqual(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
+//       case Equal(g, Number(z)) => Equal(Differential(g), zero).ensuring(z == 0)
+//       case Equal(Number(z), g) => Equal(zero, Differential(g)).ensuring(z == 0)
+//       case _ => throw new MatchError("The postcondition: " + p.toString + " does not match the required comparison with 0.")
+//     }
+
     val derivative = p match {
-      case Greater(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
-      case Greater(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
-      case Less(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
-      case Less(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
-      case GreaterEqual(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
-      case GreaterEqual(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
-      case LessEqual(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
-      case LessEqual(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
-      case Equal(g, Number(z)) => Equal(Differential(g), zero).ensuring(z == 0)
-      case Equal(Number(z), g) => Equal(zero, Differential(g)).ensuring(z == 0)
+      case Greater(g, Number(z)) => Greater(DifferentialHelper.lieDerivative(d,g), zero).ensuring(z == 0)
+      case Greater(Number(z), g) => Greater(zero, DifferentialHelper.lieDerivative(d,g)).ensuring(z == 0)
+      case Less(g, Number(z)) => Less(DifferentialHelper.lieDerivative(d,g), zero).ensuring(z == 0)
+      case Less(Number(z), g) => Less(zero, DifferentialHelper.lieDerivative(d,g)).ensuring(z == 0)
+      case GreaterEqual(g, Number(z)) => Greater(DifferentialHelper.lieDerivative(d,g), zero).ensuring(z == 0)
+      case GreaterEqual(Number(z), g) => Greater(zero, DifferentialHelper.lieDerivative(d,g)).ensuring(z == 0)
+      case LessEqual(g, Number(z)) => Less(DifferentialHelper.lieDerivative(d,g), zero).ensuring(z == 0)
+      case LessEqual(Number(z), g) => Less(zero, DifferentialHelper.lieDerivative(d,g)).ensuring(z == 0)
+      case Equal(g, Number(z)) => Equal(DifferentialHelper.lieDerivative(d,g), zero).ensuring(z == 0)
+      case Equal(Number(z), g) => Equal(zero, DifferentialHelper.lieDerivative(d,g)).ensuring(z == 0)
       case _ => throw new MatchError("The postcondition: " + p.toString + " does not match the required comparison with 0.")
     }
 

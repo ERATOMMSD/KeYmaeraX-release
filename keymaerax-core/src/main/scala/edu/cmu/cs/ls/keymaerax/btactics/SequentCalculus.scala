@@ -249,6 +249,9 @@ trait SequentCalculus {
 
   def partialTimeStretch(splitPoint : Formula): DependentPositionWithAppliedInputTactic =
     ProofRuleTactics.partialTimeStretch(splitPoint)
+    
+  def generalisedSynchronisation(splitPoint : Formula): DependentPositionWithAppliedInputTactic =
+    ProofRuleTactics.generalisedSynchronisation(splitPoint)
 
   val monotonicConditionSwap: BuiltInRightTactic = "MCS" by { (pr:ProvableSig, pos:SuccPosition) => pr(MonotonicConditionSwap(pos.checkTop), 0) }
 }
