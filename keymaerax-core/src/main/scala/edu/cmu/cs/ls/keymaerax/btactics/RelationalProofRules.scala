@@ -212,6 +212,18 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     }
   }
 
+  def composeInstructionList(instructionList: immutable.List[Program]): Program = {
+    if (instructionList.length <= 1) {
+      instructionList.head
+    }
+    else if (instructionList.length == 2) {
+      Compose(instructionList.head, instructionList.last)
+    }
+    else {
+      Compose(instructionList.head, composeInstructionList(instructionList.tail))
+    }
+  }
+
   def parseFormula(formula: Formula): (Program, immutable.List[Program], Test, Formula) = {
     val (program, postcondition) = formula match {
       case Box(prog, pc) => (prog, pc)
@@ -384,6 +396,8 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
 
     val topPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(topVariables).isEmpty)
     val bottomPrograms = instructionList.filter(program => !StaticSemantics.vars(program).intersect(bottomVariables).isEmpty)
+    val independentPrograms = instructionList.filter(program => StaticSemantics.vars(program).intersect(topVariables).isEmpty &&
+      StaticSemantics.vars(program).intersect(bottomVariables).isEmpty)
 
     //Check program independence
     topPrograms.foreach(program =>
@@ -393,8 +407,6 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
       require(StaticSemantics.vars(program).intersect(topVariables).isEmpty, "Generalised Synchronisation requires independent programs, but " +
         program + " depends on " + StaticSemantics.vars(program).intersect(topVariables)))
 
-    //TODO: Shovel any remaining programs into postcondition
-
     //Compute monotonicity formulae
     val topProgramMonotonicity = constructMonotonicityFormula(topPrograms, topSync)
     val bottomProgramMonotonicity = constructMonotonicityFormula(bottomPrograms, bottomSync)
@@ -402,11 +414,19 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
     //Compute Actual Synchronisation
     val synchronisedProgram = synchronisePrograms(topPrograms, bottomPrograms)
 
+    //Deal with independent programs
+    val extendedExitCondition = if (independentPrograms.isEmpty) {
+      exitCondition
+    }
+    else {
+      Compose(composeInstructionList(independentPrograms), exitCondition)
+    }
+
     immutable.List(s.updated(pos, sync),
       s.updated(pos, Box(originalProgram, sync)),
       s.updated(pos, topProgramMonotonicity),
       s.updated(pos, bottomProgramMonotonicity),
-      s.updated(pos, Box(Compose(synchronisedProgram, exitCondition), postcondition)))
+      s.updated(pos, Box(Compose(synchronisedProgram, extendedExitCondition), postcondition)))
   }
 }
 
