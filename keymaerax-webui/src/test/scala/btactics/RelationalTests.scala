@@ -52,7 +52,7 @@ class RelationalTests extends TacticTestBase with Matchers {
 
 
   //Generalised Synchronisation
-  "Generalised Synchronisation Rule" should "Successfully merge to normal programs with only dynamics" in {
+  "Generalised Synchronisation Rule" should "Successfully merge two normal programs with only dynamics" in {
     val antecedent = IndexedSeq("x=y".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
     val result = List[Sequent](
@@ -66,31 +66,165 @@ class RelationalTests extends TacticTestBase with Matchers {
     testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
   }
 
+  it should "Successfully merge two normal programs with tests and dynamics" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}?x>5;{y'=2&true}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}?x>5;{y'=2&true}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0}?x>5;?true;}?x=y;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
+  it should "Successfully merge two normal programs with nondeterministic choices and dynamics" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{{y'=2&true} ++ {y'=A()&y<3}}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{{y'=2&true} ++ {y'=A()&y<3}}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0 & [{y'=A()&y<3}]A()>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0} ++ {x'=1,y'=A()*(1/A())&((x<8&y<3) & 1>0) & A()>0}}?x=y;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
+  it should "successfully merge dynamics in a toy example with switched sync condition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("y=x".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]y=x".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2,x'=1*(2/1)&((true & x<8) & 2>0) & 1>0}?x=y;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("y=x".asFormula, pos), sequent, result)
+  }
+
+  it should "successfully merge dynamics in a toy example with box in postcondition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;][x:=y+4;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0}?x=y;][x:=y+4;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
+  it should "successfully merge dynamics in abstraction example" in {
+    val antecedent = IndexedSeq("A()>0&V()>0&x=0&y=0&0<v&v=w".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}?v=V();{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}?v=V();{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}](v>0 & (v=V() -> [{x'=v,v'=(A()*V())/v&true}]v>0))".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=w,w'=A()&true}]w>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&((v<=V()&true) & v>0) & w>0}?v=V();{x'=v,v'=(A()*V())/v,y'=w*(v/w),w'=A()*(v/w)&((true&true) &v>0)& w>0}}?x=y;]v<=w".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
   it should "throw an exception when applied to a formula without programs to synchronise" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}?x=y;]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula without exit condition" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;{z'=u,u'=c&true}]v<=w".asFormula)))
   }
 
   it should "throw an exception when applied to a formula nested in a propositional formula" in {
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y&[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y|[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
 
-    an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("x=y->[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with assignments in the hybrid program" in {
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}x:=8;{y'=2&true}?x=y;]x+y>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}y:=8;?x=y;]x+y>0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with loops in the hybrid program" in {
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{{y'=2&true}}*?x=y;]x+y>0".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{{x'=1&x<8}{y'=2&true}}*?x=y;]x+y>0".asFormula)))
+  }
+
+  it should "throw an exception when applied to a formula with the exit condition nested in a propositional formula" in {
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}](x=y&[?x=y;]x<=y)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}](x=y|[?x=y;]x<=y)".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}](x=y->[?x=y;]x<=y)".asFormula)))
+  }
+
+  it should "throw an exception when the synchronisation condition is not a relation" in {
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("x=8".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x<=y".asFormula)))
+
+    an [MatchError] should be thrownBy testRule(GeneralisedSynchronisation("0=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when the synchronisation condition mixes variables from the two hybrid programs" in {
+    an [IllegalArgumentException] should be thrownBy testRule(GeneralisedSynchronisation("x=y*v".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(GeneralisedSynchronisation("w-x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to two hybrid programs sharing a bound variable" in {
+    an [IllegalArgumentException] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a&true}{y'=v,v'=b&true}?x=y;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=w,w'=a&true}{y'=w,w'=b&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to two hybrid programs sharing a variable bound in only one of them" in {
+    an [IllegalArgumentException] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a&true}{y'=v&true}?x=y;]x<=y".asFormula)))
+
+    an [IllegalArgumentException] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, pos),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a*y&true}{y'=w,w'=b&true}?x=y;]x<=y".asFormula)))
+  }
+
+  it should "throw an exception when applied to a position which does not exist" in {
+    an [IndexOutOfBoundsException] should be thrownBy testRule(GeneralisedSynchronisation("x=y".asFormula, SeqPos(5).asInstanceOf[SuccPos]),
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula)))
   }
 
   //Time Stretch

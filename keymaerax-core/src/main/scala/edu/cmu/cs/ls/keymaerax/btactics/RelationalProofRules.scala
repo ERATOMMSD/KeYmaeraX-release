@@ -280,10 +280,20 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
 //         case Some(derivative) => monotonicityFormula = Box(dynamics, And(Greater(derivative, Number(0)), monotonicityFormula))
 //         case None => return False
 //       }
-      case Choice(left, right) => monotonicityFormula = And(constructMonotonicityFormula(parseProgram(left), sync),
-        And(constructMonotonicityFormula(parseProgram(right), sync),
-          Box(Choice(left, right), monotonicityFormula)))
-      case Test(cond) => monotonicityFormula = Imply(cond, monotonicityFormula)
+      case Choice(left, right) =>
+        if (monotonicityFormula == True) {
+          monotonicityFormula = And(constructMonotonicityFormula(parseProgram(left), sync),
+            constructMonotonicityFormula(parseProgram(right), sync))
+        }
+        else {
+          monotonicityFormula = And(constructMonotonicityFormula(parseProgram(left), sync),
+            And(constructMonotonicityFormula(parseProgram(right), sync),
+              Box(Choice(left, right), monotonicityFormula)))
+        }
+      case Test(cond) =>
+        if (monotonicityFormula != True){
+          monotonicityFormula = Imply(cond, monotonicityFormula)
+        }
     }
 
     SimplifierV3.formulaSimp(monotonicityFormula,SimplifierV3.emptyCtx,SimplifierV3.defaultFaxs,SimplifierV3.defaultTaxs)._1
