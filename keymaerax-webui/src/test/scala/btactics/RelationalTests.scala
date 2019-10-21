@@ -94,6 +94,21 @@ class RelationalTests extends TacticTestBase with Matchers {
     testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
   }
 
+  //TODO this test should be failing with an exception as this is not implemented yet
+  it should "Successfully merge two normal programs with nondeterministic choices on both programs" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true} ++ {x'=A()&x<3}{y'=A()&y<3}}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true} ++ {x'=A()&x<3}{y'=A()&y<3}}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0 & [{x'=A()&x<3}]A()>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0 & [{y'=A()&y<3}]A()>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0} ++ {x'=A(),y'=A()*(A()/A())&((x<3&y<3) & A()>0) & A()>0}}?x=y;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
   it should "successfully merge dynamics in a toy example with switched sync condition" in {
     val antecedent = IndexedSeq("x=y".asFormula)
     val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
@@ -117,6 +132,21 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0}?x=y;][x:=y+4;]x+y>0".asFormula))
+    )
+
+    testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
+  }
+
+  //TODO This test should be failing on comparison as this is not implemeted yet
+  it should "successfully merge dynamics with extra programs and include them with the exit condition" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{z'=A()&true}{y'=2&true}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}{z'=A()&true}?x=y;]x=y".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]2>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0}{z'=A()&true}?x=y;]x+y>0".asFormula))
     )
 
     testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
