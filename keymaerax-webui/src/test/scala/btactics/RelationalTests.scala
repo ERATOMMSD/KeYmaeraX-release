@@ -60,7 +60,7 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=1&x<8}](1*1>0 & true)".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=2&true}](1*2>0 & true)".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true}?x=y) & 1>0) & 2>0) ?x<8;]x+y>0".asFormula))
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/2)&((x<8&true) & 1>0) & 2>0}?x=y;]x+y>0".asFormula))
     )
 
     testRule(GeneralisedSynchronisation("x=y".asFormula, pos), sequent, result)
@@ -165,6 +165,20 @@ class RelationalTests extends TacticTestBase with Matchers {
     testRule(TimeStretch("x=y".asFormula, pos), sequent, result)
   }
 
+  it should "Successfully merge dynamics even when synchronisation condition is not a relation" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=1&x<8}{y'=2&true}?x=y;]x+y>0".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[{?x<8&true;}]x=3".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{{x'=1&x<8}{y'=2&true}}?x=y;]x=3".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1&x<8}]1>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=2&true}]0>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=1,y'=2*(1/0)&(((x<8&true)&1>0)&0>0)}?x=y;]x+y>0".asFormula))
+    )
+
+    testRule(TimeStretch("x=3".asFormula, pos), sequent, result)
+  }
+
   it should "throw an exception when applied to a formula with single differential dynamics" in {
     an [MatchError] should be thrownBy testRule(TimeStretch("x=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}?x=y;]v<=w".asFormula)))
@@ -245,14 +259,6 @@ class RelationalTests extends TacticTestBase with Matchers {
 
   it should "throw an exception when applied to a formula with sync condition which is not equality" in {
     an [MatchError] should be thrownBy testRule(TimeStretch("x<=y".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
-  }
-
-  it should "throw an exception when applied to an sync condition which is not a relation" in {
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("x=3".asFormula, pos),
-      Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
-
-    an [IllegalArgumentException] should be thrownBy testRule(TimeStretch("10=y".asFormula, pos),
       Sequent(IndexedSeq(), IndexedSeq("[{x'=v,v'=a&true}{y'=w,w'=b&true}?x=y;]v<=w".asFormula)))
   }
 

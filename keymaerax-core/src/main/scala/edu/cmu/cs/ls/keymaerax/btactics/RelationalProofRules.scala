@@ -291,24 +291,70 @@ case class GeneralisedSynchronisation(sync: Formula, pos: SuccPos) extends Relat
 
   def synchronisePrograms(topPrograms: immutable.List[Program], bottomPrograms: immutable.List[Program]): Program = {
     (topPrograms.headOption, bottomPrograms.headOption) match {
-      case (Some(test@Test(_)), _) => Compose(test, synchronisePrograms(topPrograms.tail, bottomPrograms))
+      case (Some(test@Test(_)), _) =>
+        val remainderSynchronisation = synchronisePrograms(topPrograms.tail, bottomPrograms)
+
+        if (remainderSynchronisation == null) {
+          test
+        }
+        else {
+          Compose(test, remainderSynchronisation)
+        }
       case (Some(Choice(left, right)), _) => Choice(
         synchronisePrograms(immutable.List[Program](left) ++ topPrograms.tail, bottomPrograms),
         synchronisePrograms(immutable.List[Program](right) ++ topPrograms.tail, bottomPrograms))
-      case (_, Some(test@Test(_))) => Compose(test, synchronisePrograms(topPrograms, bottomPrograms.tail))
+      case (_, Some(test@Test(_))) =>
+        val remainderSynchronisation = synchronisePrograms(topPrograms, bottomPrograms.tail)
+
+        if (remainderSynchronisation == null) {
+          test
+        }
+        else {
+          Compose(test, remainderSynchronisation)
+        }
       case (_, Some(Choice(left, right))) => Choice(
         synchronisePrograms(topPrograms, immutable.List[Program](left) ++ bottomPrograms.tail),
         synchronisePrograms(topPrograms, immutable.List[Program](right) ++ bottomPrograms.tail))
-      case (Some(ODESystem(_, constraint)), None) => Compose(Test(constraint), synchronisePrograms(topPrograms.tail, bottomPrograms))
-      case (None, Some(ODESystem(_, constraint))) => Compose(Test(constraint), synchronisePrograms(topPrograms, bottomPrograms.tail))
+      case (Some(ODESystem(_, constraint)), None) =>
+        val remainderSynchronisation = synchronisePrograms(topPrograms.tail, bottomPrograms)
+
+        if (remainderSynchronisation == null){
+          Test(constraint)
+        }
+        else {
+          Compose(Test(constraint), remainderSynchronisation)
+        }
+      case (None, Some(ODESystem(_, constraint))) =>
+        val remainderSynchronisation = synchronisePrograms(topPrograms, bottomPrograms.tail)
+
+        if (remainderSynchronisation == null) {
+          Test(constraint)
+        }
+        else {
+          Compose(Test(constraint), remainderSynchronisation)
+        }
       case (Some(topDynamics@ODESystem(_, _)), Some(bottomDynamics@ODESystem(_, _))) => {
         val (_, synchronisedDynamics) = computeTimeStretchFunction(topDynamics, bottomDynamics, sync)
 
-        Choice(Compose(synchronisedDynamics, synchronisePrograms(topPrograms, bottomPrograms.tail)),
-          Compose(synchronisedDynamics, synchronisePrograms(topPrograms.tail, bottomPrograms))
-        )
+        if (topPrograms.length < 2) {
+          if (bottomPrograms.length < 2) {
+            synchronisedDynamics
+          }
+          else {
+            Compose(synchronisedDynamics, synchronisePrograms(topPrograms, bottomPrograms.tail))
+          }
+        }
+        else {
+          if (bottomPrograms.length < 2) {
+            Compose(synchronisedDynamics, synchronisePrograms(topPrograms.tail, bottomPrograms))
+          }
+          else {
+            Choice(Compose(synchronisedDynamics, synchronisePrograms(topPrograms, bottomPrograms.tail)),
+              Compose(synchronisedDynamics, synchronisePrograms(topPrograms.tail, bottomPrograms)))
+          }
+        }
       }
-      case (None, None) => Test(True) //TODO
+      case (None, None) => null
     }
   }
 
