@@ -409,7 +409,7 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?x=y;][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&((x<=X()&true) & a>0) & 3>0}?x=y;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;]x<=y".asFormula))
     )
@@ -424,7 +424,7 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]y=x".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?y=x;][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&((x<=X()&true) & 3>0) & a>0}?y=x;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("y=x&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?y=x;]x<=y".asFormula))
     )
@@ -439,7 +439,7 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?x=y;][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&((x<=X()&true) & a>0) & 3>0}?x=y;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
     )
@@ -454,7 +454,7 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=3&true}]3>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&x<=X()&true}?x=y;][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/3)&((x<=X()&true) & a>0) & 3>0}?x=y;][?x=X();]y=X()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=y;][x:=y-5;]x<=y".asFormula))
     )
@@ -469,12 +469,27 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(antecedent, IndexedSeq("[?v<=V()&true;]x=y".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]v>0".asFormula)),
       Sequent(antecedent, IndexedSeq("[{y'=w,w'=A()&true}]w>0".asFormula)),
-      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&v<=V()&true}?x=y;][?v=V();]w=V()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=v,v'=a,y'=w*(v/w),w'=A()*(v/w)&((v<=V()&true) & v>0) & w>0}?x=y;][?v=V();]w=V()".asFormula)),
       Sequent(antecedent, IndexedSeq("[{x'=v,v'=a&v<=V()}]((x)'>=0&[?v=V();{x'=v,v'=(A()*V())/v&true}](x)'>=0)".asFormula)),
       Sequent(IndexedSeq("x=y&v=V()&w=V()".asFormula), IndexedSeq("[{x'=v,v'=(A()*V())/v&true}{y'=w,w'=A()&true}?x=y;]v<=w".asFormula))
     )
 
     testRule(PartialTimeStretch("w=V()".asFormula, pos), sequent, result)
+  }
+
+  it should "successfully merge dynamics even when synchronisation condition is not relation" in {
+    val antecedent = IndexedSeq("x=y".asFormula)
+    val sequent = Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=0;]x<=y".asFormula))
+    val result = List[Sequent](
+      Sequent(antecedent, IndexedSeq("[?x<=X()&true;]x=0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]a>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{y'=3&true}]0>0".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a,y'=3*(a/0)&((x<=X()&true) & a>0) & 0>0}?x=0;][?x=X();]y=X()".asFormula)),
+      Sequent(antecedent, IndexedSeq("[{x'=a&x<=X()}]((x)'>=0&[?x=X();{x'=a-4&true}](x)'>=0)".asFormula)),
+      Sequent(IndexedSeq("x=0&x=X()&y=X()".asFormula), IndexedSeq("[{x'=a-4&true}{y'=3&true}?x=0;]x<=y".asFormula))
+    )
+
+    testRule(PartialTimeStretch("y=X()".asFormula, pos), sequent, result)
   }
 
   it should "throw an exception when applied to a formula with single split differential dynamics" in {
@@ -586,20 +601,12 @@ class RelationalTests extends TacticTestBase with Matchers {
       Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}{?x=y;}*]x<=y".asFormula)))
   }
 
-  it should "throw an exception when applied to an exit condition which is not a relation" in {
-    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
-      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=0;]x<=y".asFormula)))
-
-    an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
-      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?10=y;]x<=y".asFormula)))
-  }
-
   it should "throw an exception when applied to an exit condition which mixes variables from the two dynamics" in {
     an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
-      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?x=y*v;]x<=y".asFormula)))
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a&x<=X()}?x=X();{x'=a-4&true}{y'=w,w'=a&true}?x=y*v;]x<=y".asFormula)))
 
     an [IllegalArgumentException] should be thrownBy testRule(PartialTimeStretch("y=X()".asFormula, pos),
-      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=a&x<=X()}?x=X();{x'=a-4&true}{y'=3&true}?w+x=y;]x<=y".asFormula)))
+      Sequent(IndexedSeq("x=y".asFormula), IndexedSeq("[{x'=v,v'=a&x<=X()}?x=X();{x'=a-4&true}{y'=w,w'=a&true}?w+x=y;]x<=y".asFormula)))
   }
 
   it should "throw an exception when applied to two differential dynamics sharing a differential (LHS) variable" in {
