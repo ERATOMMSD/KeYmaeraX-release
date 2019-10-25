@@ -36,110 +36,7 @@ sealed abstract class RelationalProofRule() extends RightRule {
     else {
       DifferentialProduct(ode.head, composeODE(ode.tail))
     }
-  }
-  
-  def computeDerivative(func : Term, x : Variable) : Term = {
-     func match {
-         case BaseVariable(x.name,_,_) => Number(BigDecimal(1))
-         case BaseVariable(_,_,_) => Number(0)
-         case Number(_) => Number(0)
-         case Neg(funcp) => Neg(computeDerivative(funcp,x))
-         case Plus(func1,func2) => Plus(computeDerivative(func1,x),computeDerivative(func2,x))
-         case Minus(func1,func2) => Minus(computeDerivative(func1,x),computeDerivative(func2,x))
-         case Times(func1,func2) => Plus(Times(func1,computeDerivative(func2,x)),Times(computeDerivative(func1,x),func2))
-         case Divide(func1,func2) => Minus(Divide(computeDerivative(func1,x),func2),Divide(Times(func1,computeDerivative(func2,x)),Power(func2,Number(2))))
-         case Power(funcp,Number(n)) => require(n>=1, "The function: " + func.toString + " is not of the valid form."); 
-            Times(Number(n),Times(computeDerivative(funcp,x),Power(funcp,Number(n-1))))
-         case _ => throw new MatchError("The function: " + func.toString + " is not of the valid form.")
-      } 
-    }
-    
-    def computeLieDerivative(func : Term, ODE: List[AtomicODE]) : Option[Term] = {
-        ODE match {
-            case Nil =>  None
-            case AtomicODE(d,t)::rest => 
-                val b = StaticSemantics.boundVars(AtomicODE(d,t)).intersect(StaticSemantics.vars(func)).isEmpty
-                if (!b)
-                    computeLieDerivative(func,rest) match {
-                        case None => Some(Times(computeDerivative(func,d),t))
-                        case Some(s) => Some(Plus(s,Times(computeDerivative(func,d),t)))
-                    }
-                else 
-                    computeLieDerivative(func,rest)
-        }
-    }
-    
-    def simplifyDerivative(func:Term) : Term = {
-        func match {
-            case BaseVariable(_,_,_) => func
-            case Number(_) => func
-            case Neg(t) => simplifyDerivative(t) match {
-                case Number(x) => Number(-x)
-                case Neg(s) => s
-                case s => Neg(s)
-            }
-            case Plus(t,tp) =>  (simplifyDerivative(t),simplifyDerivative(tp)) match {
-                case (Number(x),sp) if x == BigDecimal(0) => sp
-                case (s,Number(x)) if x == BigDecimal(0) => s
-                case (Number(x),Number(y)) => Number(x+y)
-//                 case (s,s) => Times(Number(BigDecimal(2)),s)
-//                 case (Times(Number(x),s),s) => Times(Number(x+1),s)
-//                 case (s,Times(Number(x),s)) => Times(Number(x+1),s)
-//                 case (Times(Number(x),s),Times(Number(y),s)) => Times(Number(x+y),s)
-//                 case (s,Neg(s)) => Number(BigDecimal(0))
-//                 case (Times(Number(x),s),Neg(s)) => Times(Number(x-1),s)
-//                 case (Neg(s),Times(Number(x),s)) => Times(Number(x-1),s)
-                case (s,sp) => Plus(s,sp)
-            }
-            case Minus(t,tp) => (simplifyDerivative(t),simplifyDerivative(tp)) match {
-                case (Number(x),sp) if x == BigDecimal(0) => sp
-                case (s,Number(x)) if x == BigDecimal(0) => s
-                case (Number(x),Number(y)) => Number(x-y)
-//                 case (x,x) => Number(BigDecimal(0))
-//                 case (Times(Number(x),s),s) => Times(Number(x-1),s)
-//                 case (s,Times(Number(x),s)) => Times(Number(1-x),s)
-//                 case (Times(Number(x),s),Times(Number(y),s)) => Times(Number(x-y),s)
-//                 case (s,Neg(s)) => Times(Number(BigDecimal(2)),s)
-//                 case (Times(Number(x),s),Neg(s)) => Times(Number(x+1),s)
-//                 case (Neg(s),Times(Number(x),s)) => Times(Number(-1-x),s)
-                case (s,sp) => Minus(s,sp)
-            }
-            case Times(t,tp) => (simplifyDerivative(t),simplifyDerivative(tp)) match {
-                case (Number(x),sp) if x == BigDecimal(0) => Number(BigDecimal(0))
-                case (s,Number(x)) if x == BigDecimal(0) => Number(BigDecimal(0))
-                case (Number(x),sp) if x == BigDecimal(1) => sp
-                case (s,Number(x)) if x == BigDecimal(1) => s
-                case (Number(x),Number(y)) => Number(x*y)
-                case (Times(Number(x),s),Number(y)) => Times(Number(x*y),s)
-                case (Number(y),Times(Number(x),s)) => Times(Number(x*y),s)
-                case (Times(Number(x),s),Times(Number(y),sp)) if s == sp => Times(Number(x*y),Power(s,Number(BigDecimal(2))))
-                case (Times(Number(x),s),Times(Number(y),sp)) => Times(Number(x*y),Times(s,sp))
-                case (s,Number(x)) => Times(Number(x),s)
-                case (Neg(s),Neg(sp)) => Times(s,sp)
-                case (s,sp) => Times(s,sp)
-            }
-            case Divide(t,tp) => (simplifyDerivative(t),simplifyDerivative(tp)) match {
-                case (Number(x),sp) if x == BigDecimal(0) => Number(BigDecimal(0))
-                case (s,x) if x == BigDecimal(1) => s
-                case (Number(x),Number(y)) => Number(x/y)
-                case (s,Number(x)) => Times(Divide(Number(BigDecimal(1)),Number(x)),s)
-                case (Times(Number(x),s),Number(y)) => Times(Number(x/y),s)
-                case (Times(Number(x),s),Times(Number(y),sp)) => Times(Number(x/y),Divide(s,sp))
-                case (sp,Times(Number(x),s)) => Times(Number(x),Divide(sp,s))
-                case (s,sp) => Divide(s,sp)
-            }
-            case Power(t,Number(x)) => simplifyDerivative(t) match {
-                case s if x == BigDecimal(0) => Number(BigDecimal(1))
-                case s if x == BigDecimal(1) => s
-//                 case Number(y) => Number(math.pow(y,math.toInt(x)))
-//                 case Times(Number(y),s) => Times(Number(BigDecimal.pow(y,BigDecimal.toInt(x))),Power(s,Number(x)))
-                case Power(s,Number(y)) => Power(s,Number(x*y))
-                case s => Power(s,Number(x))
-            }
-            case _ => throw new MatchError("The function: " + func.toString + " is not of the valid form.")
-        }
-    }
-                
+  }              
 
   def computeTimeStretchFunction(mainODE : Program, sharpODE : Program, syncCond : Formula) : (Term, Program) = {
     require(StaticSemantics.boundVars(mainODE).intersect(StaticSemantics.vars(sharpODE)).isEmpty, "Time Stretch requires disjoint dynamics.")
@@ -149,37 +46,12 @@ sealed abstract class RelationalProofRule() extends RightRule {
     val ODESystem(ds, qs) = sharpODE
     val Equal(g, gs) = syncCond
 
-//    require(g.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
-//    require(gs.isInstanceOf[Variable], "Time Stretch only handles single variable exit conditions.") //TEMP
-
     require(StaticSemantics.vars(g).intersect(StaticSemantics.boundVars(mainODE)).isEmpty || StaticSemantics.vars(g).intersect(StaticSemantics.boundVars(sharpODE)).isEmpty, "Exit Condition does not allow mixing variables")
     require(StaticSemantics.vars(gs).intersect(StaticSemantics.boundVars(mainODE)).isEmpty || StaticSemantics.vars(gs).intersect(StaticSemantics.boundVars(sharpODE)).isEmpty, "Exit Condition does not allow mixing variables")
 
     val equations = decomposeODE(d)
     val sharpEquations = decomposeODE(ds)
     val matchingOrder = checkOrder(mainODE, sharpODE, syncCond)
-
-//     val dg = (if (matchingOrder) computeLieDerivative(g,equations) else computeLieDerivative(g,sharpEquations)) match {
-// //    val dg = computeLieDerivative(g,equations) match {
-//         case None => Number(0)
-//         case Some(t) =>  //val (u,_) = SimplifierV3.termSimp(t,SimplifierV3.emptyCtx,SimplifierV3.arithBaseIndex); u
-//             simplifyDerivative(t)
-// //            match {
-// //            case (None,_) => throw new MatchError("Simplification of Lie derivative failed") 
-// //            case (Some(u),_) => u
-// //        }
-// //      .find(a => StaticSemantics.vars(g).subsetOf(StaticSemantics.boundVars(a))) match {
-// //      case Some(AtomicODE(_, dg_)) => dg_
-// //      case None => Number(0)
-//     }
-//     val dgs = (if (matchingOrder) computeLieDerivative(gs,sharpEquations) else computeLieDerivative(gs,equations)) match {
-//         case None => Number(0)
-//         case Some(t) =>  //val (u,p) = SimplifierV2.termSimp(t); u
-//             simplifyDerivative(t)
-// //      .find(a => StaticSemantics.vars(gs).subsetOf(StaticSemantics.boundVars(a))) match {
-// //      case Some(AtomicODE(_, dgs_)) => dgs_
-// //      case None => Number(0)
-//     }
 
     val dg = (if (matchingOrder) DifferentialHelper.lieDerivative(d,g) else DifferentialHelper.lieDerivative(ds,g))
     val dgs = (if (matchingOrder) DifferentialHelper.lieDerivative(ds,gs) else DifferentialHelper.lieDerivative(d,gs))
@@ -482,20 +354,6 @@ case class DifferentialInductiveInvariant(pos: SuccPos) extends RightRule {
     val Box(ODESystem(d, q), p) = s(pos)
 
     val zero = Number(0)
-    //For now, we only use first order derivative, i.e. DII_1
-//     val derivative = p match {
-//       case Greater(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
-//       case Greater(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
-//       case Less(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
-//       case Less(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
-//       case GreaterEqual(g, Number(z)) => Greater(Differential(g), zero).ensuring(z == 0)
-//       case GreaterEqual(Number(z), g) => Greater(zero, Differential(g)).ensuring(z == 0)
-//       case LessEqual(g, Number(z)) => Less(Differential(g), zero).ensuring(z == 0)
-//       case LessEqual(Number(z), g) => Less(zero, Differential(g)).ensuring(z == 0)
-//       case Equal(g, Number(z)) => Equal(Differential(g), zero).ensuring(z == 0)
-//       case Equal(Number(z), g) => Equal(zero, Differential(g)).ensuring(z == 0)
-//       case _ => throw new MatchError("The postcondition: " + p.toString + " does not match the required comparison with 0.")
-//     }
 
     val derivative = p match {
       case Greater(g, Number(z)) => Greater(DifferentialHelper.lieDerivative(d,g), zero).ensuring(z == 0)
